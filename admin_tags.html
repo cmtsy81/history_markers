@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yönetim Paneli - Etiketler</title>
+  
+  <link rel="stylesheet" href="admin_style.css"> 
+  
+</head>
+<body>
+
+  <h1>Etiket Yönetimi (Faz 2)</h1>
+
+  <h2 id="formTitle">Yeni Etiket Ekle</h2>
+  <form id="tagForm">
+    <input type="hidden" id="currentEditId" value="">
+
+    <label for="key">Anahtar (key) (örn: 'architecture'):</label><br>
+    <input type="text" id="key" name="key" required><br>
+
+    <label for="tr">Türkçe (tr):</label><br>
+    <input type="text" id="tr" name="tr" required><br>
+
+    <label for="en">İngilizce (en):</label><br>
+    <input type="text" id="en" name="en" required><br>
+
+    <label for="de">Almanca (de):</label><br>
+    <input type="text" id="de" name="de" required><br>
+
+    <label for="fr">Fransızca (fr):</label><br>
+    <input type="text" id="fr" name="fr" required><br>
+
+    <button type="submit" id="submitBtn">Ekle</button>
+    <button type="button" id="cancelBtn" style="display:none;">İptal</button>
+  </form>
+
+  <h2>Mevcut Etiketler</h2>
+  <ul id="tagList">
+    </ul>
+
+  <script>
+    // 4. ADIM: Tüm JavaScript referansları "tag" olarak güncellendi
+
+    const API_URL = "/api/v1/tags"; // API URL değişti
+    const listElement = document.getElementById('tagList'); // Liste ID'si değişti
+    const formElement = document.getElementById('tagForm'); // Form ID'si değişti
+    
+    const formTitle = document.getElementById('formTitle');
+    const keyInput = document.getElementById('key');
+    const trInput = document.getElementById('tr');
+    const enInput = document.getElementById('en');
+    const deInput = document.getElementById('de');
+    const frInput = document.getElementById('fr');
+    const currentEditIdInput = document.getElementById('currentEditId');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+
+    /**
+     * 1. fetchTags() - API'den etiketleri çeker
+     */
+    async function fetchTags() {
+      try {
+        const response = await fetch(API_URL);
+        const tags = await response.json();
+        listElement.innerHTML = ""; 
+
+        if (tags.length === 0) {
+          listElement.innerHTML = "<li>Henüz etiket eklenmemiş.</li>";
+          return;
+        }
+
+        tags.forEach(tag => {
+          const li = document.createElement('li');
+          
+          // CSS class'ları (tag-info, tag-actions) stil dosyamızda tanımlı
+          li.innerHTML = `
+            <div class="tag-info">
+              <strong>${tag.key}</strong>
+              <div class="translations-container">
+                <span class="translation-tag">
+                  <span class="lang-key">TR:</span> ${tag.translations.tr || '---'}
+                </span>
+                <span class="translation-tag">
+                  <span class="lang-key">EN:</span> ${tag.translations.en || '---'}
+                </span>
+                <span class="translation-tag">
+                  <span class="lang-key">DE:</span> ${tag.translations.de || '---'}
+                </span>
+                <span class="translation-tag">
+                  <span class="lang-key">FR:</span> ${tag.translations.fr || '---'}
+                </span>
+              </div>
+            </div>
+            <div class="tag-actions">
+              <button class="edit-btn" 
+                data-id="${tag._id}"
+                data-key="${tag.key}"
+                data-tr="${tag.translations.tr || ''}"
+                data-en="${tag.translations.en || ''}"
+                data-de="${tag.translations.de || ''}"
+                data-fr="${tag.translations.fr || ''}"
+              >Düzenle</button>
+              <button class="delete-btn" data-id="${tag._id}">Sil</button>
+            </div>
+          `;
+          listElement.appendChild(li);
+        });
+
+      } catch (err) {
+        listElement.innerHTML = "<li>HATA: Etiketler yüklenemedi.</li>";
+      }
+    }
+
+    /**
+     * 2. Formu "Ekleme Modu"na sıfırlar
+     */
+    function resetForm() {
+      formTitle.innerText = "Yeni Etiket Ekle";
+      formElement.reset(); 
+      currentEditIdInput.value = ""; 
+      submitBtn.innerText = "Ekle";
+      cancelBtn.style.display = "none";
+    }
+
+    /**
+     * 3. Form gönderildiğinde (Ekleme VEYA Güncelleme)
+     */
+    formElement.addEventListener('submit', async (e) => {
+      e.preventDefault(); 
+
+      const currentId = currentEditIdInput.value;
+      const isEditMode = !!currentId;
+
+      const tagData = {
+        key: keyInput.value,
+        translations: {
+          tr: trInput.value,
+          en: enInput.value,
+          de: deInput.value,
+          fr: frInput.value
+        }
+      };
+
+      const method = isEditMode ? 'PUT' : 'POST';
+      const url = isEditMode ? `${API_URL}/${currentId}` : API_URL;
+
+      try {
+        const response = await fetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tagData)
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || (isEditMode ? 'Etiket güncellenemedi.' : 'Etiket eklenemedi.'));
+        }
+
+        resetForm();
+        await fetchTags(); 
+
+      } catch (err) {
+        alert("HATA: " + err.message);
+      }
+    });
+
+    /**
+     * 4. Liste üzerindeki butonlara tıklandığında
+     */
+    listElement.addEventListener('click', async (e) => {
+      const target = e.target;
+
+      if (target.classList.contains('delete-btn')) {
+        const id = target.dataset.id;
+        if (!confirm(`ID: ${id}\nBu etiketi silmek istediğinizden emin misiniz?`)) return;
+
+        try {
+          const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error('Silme işlemi başarısız.');
+          await fetchTags();
+        } catch (err) {
+          alert("HATA: " + err.message);
+        }
+      }
+      
+      if (target.classList.contains('edit-btn')) {
+        formTitle.innerText = "Etiketi Düzenle";
+        currentEditIdInput.value = target.dataset.id;
+        keyInput.value = target.dataset.key;
+        trInput.value = target.dataset.tr;
+        enInput.value = target.dataset.en;
+        deInput.value = target.dataset.de;
+        frInput.value = target.dataset.fr;
+        submitBtn.innerText = "Güncelle";
+        cancelBtn.style.display = "inline-block";
+        window.scrollTo(0, 0);
+      }
+    });
+    
+    /**
+     * 5. "İptal" butonuna tıklandığında formu sıfırla
+     */
+    cancelBtn.addEventListener('click', resetForm);
+
+    // --- SAYFA İLK YÜKLENDİĞİNDE ---
+    fetchTags(); // Kategoriler yerine etiketleri çek
+
+  </script>
+
+</body>
+</html>

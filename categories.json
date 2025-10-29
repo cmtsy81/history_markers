@@ -1,0 +1,72 @@
+[
+  {
+    "key": "palace",
+    "icon": "icon-palace",
+    "translations": {
+      "tr": "Saray",
+      "en": "Palace",
+      "de": "Schloss",
+      "fr": "Palais"
+    }
+  },
+  {
+    "key": "museum",
+    "icon": "icon-museum",
+    "translations": {
+      "tr": "Müze",
+      "en": "Museum",
+      "de": "Museum",
+      "fr": "Musée"
+    }
+  },
+  {
+    "key": "castle",
+    "icon": "icon-castle",
+    "translations": {
+      "tr": "Kale",
+      "en": "Castle",
+      "de": "Burg",
+      "fr": "Château"
+    }
+  },
+  {
+    "key": "church",
+    "icon": "icon-church",
+    "translations": {
+      "tr": "Kilise / Katedral",
+      "en": "Church / Cathedral",
+      "de": "Kirche / Dom",
+      "fr": "Église / Cathédrale"
+    }
+  },
+  {
+    "key": "square",
+    "icon": "icon-square",
+    "translations": {
+      "tr": "Meydan",
+      "en": "Square",
+      "de": "Platz",
+      "fr": "Place"
+    }
+  },
+  {
+    "key": "bridge",
+    "icon": "icon-bridge",
+    "translations": {
+      "tr": "Köprü",
+      "en": "Bridge",
+      "de": "Brücke",
+      "fr": "Pont"
+    }
+  },
+  {
+    "key": "park",
+    "icon": "icon-park",
+    "translations": {
+      "tr": "Park / Bahçe",
+      "en": "Park / Garden",
+      "de": "Park / Garten",
+      "fr": "Parc / Jardin"
+    }
+  }
+]

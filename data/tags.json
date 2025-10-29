@@ -1,0 +1,38 @@
+[
+  {
+    "key": "unesco",
+    "translations": {
+      "tr": "UNESCO Mirası",
+      "en": "UNESCO Heritage",
+      "de": "UNESCO-Erbe",
+      "fr": "Patrimoine UNESCO"
+    }
+  },
+  {
+    "key": "historical",
+    "translations": {
+      "tr": "Tarihi",
+      "en": "Historical",
+      "de": "Historisch",
+      "fr": "Historique"
+    }
+  },
+  {
+    "key": "iconic",
+    "translations": {
+      "tr": "İkonik Yapı",
+      "en": "Iconic Landmark",
+      "de": "Wahrzeichen",
+      "fr": "Emblématique"
+    }
+  },
+  {
+    "key": "viewpoint",
+    "translations": {
+      "tr": "Manzara Noktası",
+      "en": "Viewpoint",
+      "de": "Aussichtspunkt",
+      "fr": "Point de vue"
+    }
+  }
+]

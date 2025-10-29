@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Proje Haritası - v1</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+  <style>
+    /* Haritanın tüm sayfayı kaplamasını sağla */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+      background-color: #eee; /* Harita yüklenirken */
+    }
+  </style>
+</head>
+<body>
+
+  <div id="map"></div>
+
+  <script>
+    // --- YAPIILANDIRMA ---
+    // Backend API'mizin adresi (server.js'in çalıştığı yer)
+    const API_BASE_URL = "http://localhost:3000/api/v1/locations";
+    const DEFAULT_LANG = "tr"; // Harita için varsayılan dil
+
+    // Harita ve "pin"leri (marker) yönetmek için global değişkenler
+    let map;
+    let markersLayer = L.layerGroup(); // Tüm pinleri bu katmanda toplayacağız
+
+    /**
+     * 1. Haritayı Başlatma Fonksiyonu
+     */
+    function initMap() {
+      console.log("Harita başlatılıyor...");
+      
+      // Haritayı oluştur ve Budapeşte'ye odakla
+      map = L.map('map').setView([47.4979, 19.0402], 14); // [lat, lng], zoom seviyesi
+
+      // 2. OpenStreetMap Altlık Haritasını Ekle (API KEY GEREKTİRMEZ)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+
+      // Pin katmanını haritaya ekle
+      markersLayer.addTo(map);
+
+      // 3. Harita Olay Dinleyicisini Ayarla
+      // Kullanıcı haritayı kaydırmayı veya zoom'u BİTİRDİĞİNDE...
+      map.on('moveend', () => {
+        console.log("Harita hareketi bitti. Yeni lokasyonlar çekilecek...");
+        fetchLocationsForCurrentView();
+      });
+
+      // 4. İlk lokasyonları yükle
+      fetchLocationsForCurrentView();
+    }
+
+    /**
+     * 2. Mevcut Harita Görünümü (BBox) için API'den Lokasyonları Çek
+     */
+    async function fetchLocationsForCurrentView() {
+      // a. Haritanın o anki köşe koordinatlarını (BBox) al
+      const bounds = map.getBounds();
+      const sw = bounds.getSouthWest(); // Güneybatı
+      const ne = bounds.getNorthEast(); // Kuzeydoğu
+
+      // b. API Kontratımıza uygun URL'i oluştur
+      const apiUrl = `${API_BASE_URL}?lang=${DEFAULT_LANG}&sw_lat=${sw.lat}&sw_lng=${sw.lng}&ne_lat=${ne.lat}&ne_lng=${ne.lng}`;
+      
+      console.log("İstek gönderiliyor:", apiUrl);
+
+      try {
+        // c. API'ye isteği gönder
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          throw new Error(`API Hatası: ${response.statusText}`);
+        }
+        
+        const locations = await response.json();
+        console.log(`${locations.length} adet lokasyon bulundu.`);
+        
+        // d. Lokasyonları haritaya "pin" olarak işle
+        updateMapMarkers(locations);
+
+      } catch (error) {
+        console.error("Lokasyonlar çekilirken hata oluştu:", error);
+        // Burada kullanıcıya bir hata mesajı gösterebiliriz
+      }
+    }
+
+    /**
+     * 3. Haritadaki "Pin"leri (Markers) Güncelle
+     */
+    function updateMapMarkers(locations) {
+      // a. Önceki tüm pinleri haritadan temizle
+      markersLayer.clearLayers();
+
+      // b. API'den gelen her lokasyon için yeni bir pin oluştur
+      locations.forEach(location => {
+        // Lokasyonun koordinatlarını al (GeoJSON formatı [lng, lat] idi, Leaflet [lat, lng] ister)
+        const lat = location.location.coordinates[1];
+        const lng = location.location.coordinates[0];
+
+        const marker = L.marker([lat, lng]);
+
+        // Pine tıklandığında açılacak baloncuk (popup)
+        // API'den gelen işlenmiş 'title' ve 'description' alanlarını kullanıyoruz
+        marker.bindPopup(`
+          <b>${location.title}</b>
+          <p>${location.description.substring(0, 100)}...</p>
+        `);
+
+        // Pini haritaya (daha doğrusu katmana) ekle
+        markersLayer.addLayer(marker);
+      });
+    }
+
+    // --- SAYFA YÜKLENDİĞİNDE BAŞLAT ---
+    document.addEventListener("DOMContentLoaded", initMap);
+
+  </script>
+
+</body>
+</html>

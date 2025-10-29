@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seyahat Haritası</title>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  
+  <style>
+    /* --- (DÜZELTİLDİ) --- Sizin orijinal ve çalışan CSS kodunuz (temizlenmiş) --- */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #ffffff;
+      color: #2c3e50;
+    }
+    body {
+      display: flex;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 360px;
+      background: #ffffff;
+      border-right: 1px solid #e8e8e8;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.06);
+      z-index: 100;
+    }
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid #f0f0f0;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .sidebar-header h1 {
+      font-size: 24px;
+      margin-bottom: 0;
+      background: linear-gradient(135deg, #0099ff, #00d4ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 700;
+    }
+    .filters {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .filter-group label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #999;
+      font-weight: 600;
+    }
+    input[type="text"], select {
+      padding: 10px 12px;
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      color: #2c3e50;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    input[type="text"]:focus, select:focus {
+      outline: none;
+      background: #ffffff;
+      border-color: #0099ff;
+      box-shadow: 0 0 0 3px rgba(0,153,255,0.1);
+    }
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+    .sidebar-content::-webkit-scrollbar {
+      width: 6px;
+    }
+    .sidebar-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .sidebar-content::-webkit-scrollbar-thumb {
+      background: #d0d0d0;
+      border-radius: 3px;
+    }
+    .location-item {
+      padding: 12px 16px;
+      margin: 0 8px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+      color: #2c3e50;
+    }
+    .location-item:hover {
+      background: #f0f7ff;
+      border-left-color: #0099ff;
+      transform: translateX(4px);
+    }
+    .location-item.active {
+      background: #e3f2ff;
+      border-left-color: #0099ff;
+      color: #0066cc;
+    }
+    .location-title {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    .location-meta {
+      font-size: 12px;
+      color: #999;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: #bbb;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      position: relative;
+      min-width: 0;
+    }
+    #map {
+      flex: 1;
+      background: #ffffff;
+      min-width: 0;
+    }
+    .details-panel {
+      background: #ffffff;
+      border-left: 1px solid #e8e8e8;
+      padding: 24px;
+      width: 420px;
+      overflow-y: auto;
+      box-shadow: -2px 0 8px rgba(0,0,0,0.06);
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+    .details-panel.active {
+      display: block;
+    }
+    .details-section {
+      margin-bottom: 28px;
+    }
+    .details-section:not(:last-child) {
+      padding-bottom: 20px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .details-section h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #999;
+      margin: 0 0 12px 0;
+      font-weight: 700;
+    }
+    .details-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+    .details-header h2 {
+      font-size: 26px;
+      margin: 0;
+      color: #1a1a1a;
+      line-height: 1.3;
+      max-width: 85%;
+      font-weight: 700;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      color: #ddd;
+      cursor: pointer;
+      font-size: 28px;
+      padding: 0;
+      transition: color 0.2s;
+      flex-shrink: 0;
+    }
+    .close-btn:hover {
+      color: #999;
+    }
+    .details-description {
+      font-size: 15px;
+      line-height: 1.8;
+      color: #555;
+      margin: 0;
+    }
+    .details-meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .meta-tag {
+      background: transparent;
+      color: #0099ff;
+      padding: 0;
+      border-radius: 0;
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .gallery-placeholder {
+      background: linear-gradient(135deg, #f8f9ff 0%, #f0f5ff 100%);
+      border: 1px solid #e3e8f0;
+      border-radius: 8px;
+      height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #aaa;
+      font-size: 13px;
+      margin-bottom: 28px;
+      flex-direction: column;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .gallery-placeholder:hover {
+      background: linear-gradient(135deg, #f0f2ff 0%, #e8eeff 100%);
+      border-color: #d0d8e8;
+    }
+    .gallery-placeholder-icon {
+      font-size: 32px;
+      opacity: 0.6;
+    }
+    .lang-selector {
+      display: flex;
+      gap: 6px;
+      z-index: 50;
+      background: transparent;
+      padding: 0;
+      border-radius: 0;
+      backdrop-filter: none;
+      margin-bottom: 0;
+    }
+    .lang-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid #e0e0e0;
+      background: #f8f9fa;
+      color: #888;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+      font-size: 12px;
+    }
+    .lang-btn.active {
+      background: #0099ff;
+      color: #ffffff;
+      border-color: #0099ff;
+    }
+    .lang-btn:hover {
+      border-color: #0099ff;
+      color: #0099ff;
+    }
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 24px 16px;
+      color: #bbb;
+    }
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 50%;
+      border-top-color: #0099ff;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes slideIn {
+      from {
+        transform: translateX(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        max-height: 40vh;
+        border-right: none;
+        border-bottom: 1px solid #e8e8e8;
+      }
+      .main {
+        height: 60vh;
+        flex-direction: column;
+      }
+      .details-panel {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid #e8e8e8;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="lang-selector">
+        <button class="lang-btn active" data-lang="tr">TR</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="de">DE</button>
+        <button class="lang-btn" data-lang="fr">FR</button>
+      </div>
+      <h1>🗺️ Seyahat</h1>
+      <div class="filters">
+        <div class="filter-group">
+          <label for="searchInput">Ara</label>
+          <input type="text" id="searchInput" placeholder="Lokasyon adı...">
+        </div>
+        <div class="filter-group">
+          <label for="cityFilter">Şehir</label>
+          <select id="cityFilter">
+            <option value="">Tüm Şehirler</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="categoryFilter">Kategori</label>
+          <select id="categoryFilter">
+            <option value="">Tüm Kategoriler</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-content" id="locationList">
+      <div class="loading">
+        <div class="spinner"></div>
+        <span>Yükleniyor...</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div id="map"></div>
+    <div class="details-panel" id="detailsPanel">
+      <div class="details-header">
+        <h2 id="detailsTitle">-</h2>
+        <button class="close-btn" onclick="closeDetails()">✕</button>
+      </div>
+      <div class="gallery-placeholder" id="galleryPlaceholder">
+        <img id="thumbnailImage" src="" alt="Lokasyon" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: none;">
+        <div id="galleryPlaceholderContent" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <div class="gallery-placeholder-icon">📸</div>
+          <div>Resim Galerisi</div>
+        </div>
+      </div>
+      <div class="details-section">
+        <h3>🎵 Ses</h3>
+        <audio id="audioPlayer" style="width: 100%; margin-top: 8px;" controls>
+          <source id="audioSource" src="" type="audio/mpeg">
+          Tarayıcınız ses oynatmayı desteklemiyor.
+        </audio>
+      </div>
+      <div class="details-section">
+        <h3>Hakkında</h3>
+        <p class="details-description" id="detailsDesc">-</p>
+      </div>
+      <div class="details-section">
+        <h3>Bilgiler</h3>
+        <div class="details-meta">
+          <div class="meta-tag">
+            <span>📍</span>
+            <span id="detailsCity">-</span>
+          </div>
+          <div class="meta-tag">
+            <span>🏷️</span>
+            <span id="detailsCategory">-</span>
+          </div>
+        </div>
+      </div>
+      <div class="details-section">
+        <h3>Yapım Yılı</h3>
+        <p style="font-size: 16px; font-weight: 600; color: #0099ff; margin: 0;">
+          <span id="detailsBuiltYear">-</span>
+        </p>
+      </div>
+      <div class="details-section">
+        <h3>Etiketler</h3>
+        <div id="detailsTags" style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <span style="color: #999; font-size: 13px;">-</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = "http://localhost:3000/api/v1";
+    
+    // --- (GÜNCELLENDİ) --- Global Değişkenler
+    let map;
+    let markerClusterGroup; // Pinleri kümelemek için
+    let geoIndexData = []; // Hafif index verisi (Madde 1)
+    let detailCache = new Map(); // Tıklanan detay verisi için cache (Madde 4)
+    let currentHeavyLocation = null; // Panelde gösterilen tam lokasyon objesi
+    let currentLang = 'tr';
+    let allCategories = {}; // Çeviri için key-value (örn: "palace": "Saray")
+    let allCities = [];
+    let selectedLocationId = null;
+    const markerMap = {}; // ID ile marker'a hızlı erişim için
+    
+    // --- (GÜNCELLENDİ) --- Cache süresi 10 dakikaya çıkarıldı
+    let lastIndexFetch = 0;
+    const INDEX_CACHE_TIME = 10 * 60 * 1000; // 10 dakika
+    // --- (YENİ v3.5) --- Sol listeyi göstermek için minimum zoom seviyesi
+    const MIN_ZOOM_TO_SHOW_LIST = 13;
+
+    // --- (YENİ) --- Custom marker ikonları (Kodunuzdan alındı)
+    const customIcon = L.icon({
+      iconUrl: '/custom_marker.png', // assets/public/ içinde olmalı
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+    const customIconSelected = L.icon({
+      iconUrl: '/custom_marker2.png', // assets/public/ içinde olmalı
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+
+    /**
+     * Haritayı ve MarkerCluster grubunu başlatır
+     */
+    function initMap() {
+      map = L.map('map').setView([47.4979, 19.0402], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19
+      }).addTo(map);
+
+      // --- (GÜNCELLENDİ) --- MarkerCluster grubu haritaya ekleniyor (Madde 2)
+      markerClusterGroup = L.markerClusterGroup();
+      map.addLayer(markerClusterGroup);
+      // --- (YENİ v3.5) --- Harita durduğunda listeyi GÜNCELLE
+      // Bu, API çağırmaz, sadece client-side filtreleme yapar.
+      map.on('moveend', updateLocationList);
+    }
+
+    /**
+     * (YENİ ADI: loadGeoIndex)
+     * 10 dakikada bir sunucudan HAFİF index verisini çeker (Madde 1 & 3)
+     */
+    async function loadGeoIndex() {
+      const now = Date.now();
+      
+      // 10 dakika içinde çekildiyse cache'den kullan
+      if (geoIndexData.length > 0 && (now - lastIndexFetch) < INDEX_CACHE_TIME) {
+        console.log('Geo-Index cache kullanılıyor.');
+        updateMapMarkers();
+        updateLocationList();
+        return;
+      }
+
+      console.log("Yeni Geo-Index çekiliyor...");
+      
+      // --- (GÜNCELLENDİ) --- Yeni Hafif Index API'si çağrılıyor
+      try {
+        const response = await fetch(`${API_BASE}/locations/index`);
+        geoIndexData = await response.json();
+        lastIndexFetch = now;
+        
+        updateMapMarkers();
+        updateLocationList();
+      } catch (err) {
+        console.error('Geo-Index yüklenemedi:', err);
+        document.getElementById('locationList').innerHTML = '<div class="empty-state">Hata oluştu</div>';
+      }
+    }
+
+    /**
+     * (GÜNCELLENDİ)
+     * Hafif index verisini (geoIndexData) filtreler ve MarkerCluster'a ekler
+     */
+    /**
+     * (GÜNCELLENDİ v3.4 - Başlık okuma hatası düzeltildi)
+     * Hafif index verisini (geoIndexData) filtreler ve MarkerCluster'a ekler
+     */
+    function updateMapMarkers() {
+      markerClusterGroup.clearLayers(); 
+      Object.keys(markerMap).forEach(key => delete markerMap[key]);
+
+      const selectedCategory = document.getElementById('categoryFilter').value;
+      const selectedCity = document.getElementById('cityFilter').value;
+      const search = document.getElementById('searchInput').value.toLowerCase();
+
+      const displayLocations = geoIndexData.filter(loc => {
+        // --- DÜZELTME BURADA ---
+        // 'loc.translations.title[currentLang]' YERİNE 'loc.translations[currentLang].title'
+        const title = (loc.translations && loc.translations[currentLang] && loc.translations[currentLang].title) 
+                      ? loc.translations[currentLang].title 
+                      : (loc.id || '');
+        // --- DÜZELTME BİTTİ ---
+                      
+        const matchesSearch = title.toLowerCase().includes(search);
+        const matchesCategory = !selectedCategory || loc.categoryKey === selectedCategory;
+        const matchesCity = !selectedCity || loc.city === selectedCity;
+        return matchesSearch && matchesCategory && matchesCity;
+      });
+
+      displayLocations.forEach(loc => {
+        let lat = loc.lat, lng = loc.lng;
+        if (!lat || !lng) return;
+        
+        const isSelected = loc.id === selectedLocationId;
+        const marker = L.marker([lat, lng], {
+          icon: isSelected ? customIconSelected : customIcon
+        });
+          
+        marker.on('click', () => handleMarkerClick(loc.id));
+        markerMap[loc.id] = marker;
+        markerClusterGroup.addLayer(marker);
+      });
+    }
+
+    /**
+     * (GÜNCELLENDİ)
+     * Sol listeyi, hafif index verisine (geoIndexData) göre doldurur
+     */
+    /**
+     * (GÜNCELLENDİ v3.4 - Başlık okuma hatası düzeltildi)
+     * Sol listeyi, hafif index verisine (geoIndexData) göre doldurur
+     */
+    /**
+     * (GÜNCELLENDİ v3.5 - "Senkronize Arayüz Modeli")
+     * Sol listeyi, SADECE harita yeterince yakınsa VE SADECE harita
+     * çerçevesindekilerle (BBox) doldurur.
+     */
+    function updateLocationList() {
+      const listEl = document.getElementById('locationList');
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const selectedCategory = document.getElementById('categoryFilter').value;
+      const selectedCity = document.getElementById('cityFilter').value;
+      
+      // --- (YENİ v3.5) --- 1. Adım: Zoom Seviyesini Kontrol Et
+      const currentZoom = map.getZoom();
+      if (currentZoom < MIN_ZOOM_TO_SHOW_LIST) {
+        listEl.innerHTML = '<div class="empty-state">Lokasyonları listelemek için<br>haritaya yakınlaşın...</div>';
+        return; // Yakınlaşmamışsa listeyi doldurma
+      }
+
+      // --- (YENİ v3.5) --- 2. Adım: Harita Çerçevesini (BBox) Al
+      const bounds = map.getBounds();
+
+      let filtered = geoIndexData.filter(loc => {
+        // A. Normal Filtreleri Kontrol Et
+        const title = (loc.translations && loc.translations[currentLang] && loc.translations[currentLang].title) 
+                      ? loc.translations[currentLang].title 
+                      : (loc.id || '');
+        const matchesSearch = title.toLowerCase().includes(search);
+        const matchesCategory = !selectedCategory || loc.categoryKey === selectedCategory;
+        const matchesCity = !selectedCity || loc.city === selectedCity;
+        
+        if (!matchesSearch || !matchesCategory || !matchesCity) {
+            return false;
+        }
+
+        // B. (YENİ v3.5) BBox (Harita Çerçevesi) Filtresini Kontrol Et
+        if (!loc.lat || !loc.lng) return false;
+        const markerLatLng = L.latLng(loc.lat, loc.lng);
+        const matchesBounds = bounds.contains(markerLatLng);
+        
+        return matchesBounds; // Sadece TÜM filtreleri geçenler
+      });
+      
+      // --- (YENİ v3.5) --- 3. Adım: Limitleme (Ekstra Güvenlik)
+      // Çerçevede 10.000 pin olsa bile listeye en fazla 100 tane bas
+      const MAX_LIST_ITEMS = 100;
+      let hasMoreItems = false;
+      if (filtered.length > MAX_LIST_ITEMS) {
+        filtered = filtered.slice(0, MAX_LIST_ITEMS);
+        hasMoreItems = true;
+      }
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = '<div class="empty-state">Bu alanda sonuç bulunamadı</div>';
+        return;
+      }
+
+      // 4. Adım: Listeyi Render Et
+      listEl.innerHTML = filtered.map(loc => {
+        const categoryName = allCategories[loc.categoryKey] || loc.categoryKey || '-';
+        const title = (loc.translations && loc.translations[currentLang] && loc.translations[currentLang].title) 
+                      ? loc.translations[currentLang].title 
+                      : loc.id;
+        return `
+        <div class="location-item ${loc.id === selectedLocationId ? 'active' : ''}" 
+             data-location-id="${loc.id}" 
+             onclick="handleMarkerClick('${loc.id}')">
+          <div class="location-title">${title}</div>
+          <div class="location-meta">${loc.city} • ${categoryName}</div>
+        </div>
+      `}).join('');
+      
+      if (hasMoreItems) {
+        listEl.innerHTML += '<div class="empty-state">(Ve daha fazla sonuç...)</div>';
+      }
+    }
+
+    /**
+     * --- (YENİ) --- (Madde 4)
+     * Pine veya liste öğesine tıklandığında çalışır.
+     * Detayı API'den veya cache'den "tembel yükler" (lazy load).
+     */
+    async function handleMarkerClick(id) {
+      if (!id) return;
+      
+      // Paneli hemen aç ve yükleniyor göster
+      document.getElementById('detailsPanel').classList.add('active');
+      document.getElementById('detailsTitle').textContent = "Yükleniyor...";
+      document.getElementById('detailsDesc').textContent = "...";
+      
+      // Önceki seçili pini/listeyi sıfırla
+      if (selectedLocationId && markerMap[selectedLocationId]) {
+        markerMap[selectedLocationId].setIcon(customIcon);
+      }
+      document.querySelectorAll('.location-item.active').forEach(el => el.classList.remove('active'));
+      
+      // Yeni pini/listeyi seçili yap
+      selectedLocationId = id;
+      if (markerMap[id]) {
+        markerMap[id].setIcon(customIconSelected);
+      }
+      const listItem = document.querySelector(`[data-location-id="${id}"]`);
+      if (listItem) listItem.classList.add('active');
+    
+      // Detay verisini cache'den veya API'den al
+      let locationDetails = detailCache.get(id);
+
+      if (!locationDetails) {
+        console.log(`Detay cache'de bulunamadı. API'den çekiliyor: ${id}`);
+        try {
+          // YENİ API 2'yi çağır
+          const response = await fetch(`${API_BASE}/locations/details/${id}`);
+          locationDetails = await response.json();
+          detailCache.set(id, locationDetails); // Gelecek için önbelleğe al
+        } catch (err) {
+          console.error('Detay çekilemedi:', err);
+          document.getElementById('detailsTitle').textContent = "Hata oluştu";
+          return;
+        }
+      } else {
+        console.log(`Detay cache'den kullanılıyor: ${id}`);
+      }
+      
+      currentHeavyLocation = locationDetails; // Dil değişikliği için sakla
+      
+      // UI'ı (harita konumu ve detay paneli) güncelle
+      focusMapOnLocation(locationDetails);
+      showDetails(locationDetails);
+    }
+
+    /**
+     * (YENİ ADI: focusMapOnLocation)
+     * Haritayı seçilen lokasyona odaklar (flyTo)
+     */
+    /**
+     * (GÜNCELLENDİ v3.6 - Daha iyi odaklanma)
+     * Haritayı seçilen lokasyona odaklar (flyTo)
+     */
+    function focusMapOnLocation(loc) {
+      let lat, lng;
+      if (loc.lat && loc.lng) { [lat, lng] = [loc.lat, loc.lng]; }
+      else if (loc.location?.coordinates) { [lng, lat] = loc.location.coordinates; }
+      else { return; } // Koordinat yoksa odaklanma
+
+      // --- DÜZELTME BURADA ---
+      
+      // 1. Bir lokasyona odaklanmak için istediğimiz ideal zoom seviyesi
+      const MIN_FOCUSED_ZOOM = 17; 
+
+      // 2. O anki zoom seviyesini al
+      const currentZoom = map.getZoom();
+      
+      // 3. Yeni hedefi belirle: 
+      //    Mevcut zoom ve hedef zoom'dan HANGİSİ BÜYÜKSE onu kullan.
+      //    - Eğer uzaktaysak (zoom 13), Math.max(13, 17) -> 17'ye uçar.
+      //    - Eğer çok yakındaysak (zoom 19), Math.max(19, 17) -> 19'da kalır (Geri çekilmez).
+      const targetZoom = Math.max(currentZoom, MIN_FOCUSED_ZOOM);
+      
+      map.flyTo([lat, lng], targetZoom, { duration: 1 });
+    }
+
+    /**
+     * (GÜNCELLENDİ)
+     * Detay panelini, AĞIR lokasyon verisi ve o anki "currentLang"e göre doldurur
+     */
+    function showDetails(loc) {
+      // Dil-bağımlı alanları ayarla
+      const title = loc.translations[currentLang]?.title || loc.id;
+      const description = loc.translations[currentLang]?.description || "Açıklama mevcut değil.";
+      const audioPath = loc.translations[currentLang]?.audioPath;
+      
+      document.getElementById('detailsTitle').textContent = title;
+      document.getElementById('detailsDesc').textContent = description;
+      
+      // Dil-bağımsız alanlar
+      const categoryName = allCategories[loc.categoryKey] || loc.categoryKey || '-';
+      document.getElementById('detailsCity').textContent = `📍 ${loc.city}`;
+      document.getElementById('detailsCategory').textContent = `🏷️ ${categoryName}`;
+      document.getElementById('detailsBuiltYear').textContent = loc.builtYear || '-';
+      
+      // Etiketler (Artık çeviri yapabiliriz, ama şimdilik key'leri gösteriyoruz)
+      const tagsDiv = document.getElementById('detailsTags');
+      if (loc.tagKeys && loc.tagKeys.length > 0) {
+        tagsDiv.innerHTML = loc.tagKeys.map(tagKey => 
+          `<span style="background: #e3f2ff; color: #0099ff; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${tagKey}</span>`
+        ).join('');
+      } else {
+        tagsDiv.innerHTML = '<span style="color: #999; font-size: 13px;">Etiket yok</span>';
+      }
+      
+      // Thumbnail (Kodunuzdaki mantık korundu)
+      const thumbnailImage = document.getElementById('thumbnailImage');
+      const galleryPlaceholderContent = document.getElementById('galleryPlaceholderContent');
+      let imagePath = `/assets/images/demo.jpg`;
+      if (loc.thumbnailUrl) {
+        if (loc.thumbnailUrl.startsWith('/')) { imagePath = loc.thumbnailUrl; }
+        else if (loc.thumbnailUrl.startsWith('assets/')) { imagePath = `/${loc.thumbnailUrl}`; }
+        else { imagePath = `/assets/images/${loc.thumbnailUrl}`; }
+      }
+      thumbnailImage.onerror = () => {
+        thumbnailImage.src = '/assets/images/demo.jpg';
+        thumbnailImage.onerror = null;
+      };
+      thumbnailImage.onload = () => {
+        galleryPlaceholderContent.style.display = 'none';
+        thumbnailImage.style.display = 'block';
+      };
+      thumbnailImage.src = imagePath;
+      
+      // Ses dosyası (Dil-bağımlı)
+      const audioSource = document.getElementById('audioSource');
+      const audioPlayer = document.getElementById('audioPlayer');
+      if (audioPath) {
+        let fullAudioPath = `/${audioPath}`;
+        if (audioPath.startsWith('/')) { fullAudioPath = audioPath; }
+        else if (!audioPath.startsWith('assets/')) { fullAudioPath = `/assets/audio/${audioPath}`; }
+        else { fullAudioPath = `/${audioPath}`; }
+        
+        audioSource.src = fullAudioPath;
+        audioPlayer.load();
+        audioPlayer.style.display = 'block';
+      } else {
+        audioPlayer.style.display = 'none';
+      }
+      
+      document.getElementById('detailsPanel').classList.add('active');
+    }
+
+    /**
+     * Detay panelini kapatır ve pin seçimini sıfırlar
+     */
+    function closeDetails() {
+      document.getElementById('detailsPanel').classList.remove('active');
+      if (selectedLocationId && markerMap[selectedLocationId]) {
+        markerMap[selectedLocationId].setIcon(customIcon);
+      }
+      document.querySelectorAll('.location-item.active').forEach(el => el.classList.remove('active'));
+      selectedLocationId = null;
+      currentHeavyLocation = null;
+    }
+
+    /**
+     * (GÜNCELLENDİ)
+     * Kategorileri çeker ve hem filtreye hem de çeviri haritasına ekler
+     */
+    async function loadCategories() {
+      try {
+        const res = await fetch(`${API_BASE}/categories`);
+        const categories = await res.json();
+        const select = document.getElementById('categoryFilter');
+        
+        // Önce filtreyi temizle (dil değişiminde tekrar dolmasın)
+        select.innerHTML = '<option value="">Tüm Kategoriler</option>';
+        allCategories = {}; // Çeviri haritasını sıfırla
+        
+        categories.forEach(cat => {
+          const opt = document.createElement('option');
+          const translatedName = cat.translations[currentLang] || cat.key;
+          opt.value = cat.key;
+          opt.textContent = translatedName;
+          select.appendChild(opt);
+          allCategories[cat.key] = translatedName; // Çeviri haritasını doldur
+        });
+      } catch (err) {
+        console.error('Kategoriler yüklenemedi:', err);
+      }
+    }
+
+    /**
+     * Şehirleri çeker (Sadece 1 kez çalışır)
+     */
+    async function loadCities() {
+      try {
+        const res = await fetch(`${API_BASE}/meta/cities`);
+        allCities = await res.json();
+        const select = document.getElementById('cityFilter');
+        allCities.forEach(city => {
+          const opt = document.createElement('option');
+          opt.value = city;
+          opt.textContent = city.charAt(0).toUpperCase() + city.slice(1);
+          select.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('Şehirler yüklenemedi:', err);
+      }
+    }
+
+    // --- (GÜNCELLENDİ) --- Olay Dinleyicileri (Event Listeners) ---
+
+    // Dil butonları
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentLang = btn.dataset.lang;
+        
+        // Dili değiştirince API çağırmayı durdur
+        // Sadece UI'ı ve filtreleri o anki veriyle güncelle
+        loadCategories(); // Kategori filtresindeki dili güncelle
+        updateMapMarkers(); // Haritadaki pinleri (cluster) güncelle (filtreler değişmiş olabilir)
+        updateLocationList(); // Sol listedeki başlıkları güncelle
+        
+        // Eğer bir detay paneli açıksa, onu da yeni dile göre güncelle
+        if (currentHeavyLocation) {
+          showDetails(currentHeavyLocation);
+        }
+      });
+    });
+
+    // Filtreler (API çağırmaz, sadece client-side filtreler)
+    document.getElementById('searchInput').addEventListener('input', () => {
+      updateMapMarkers();
+      updateLocationList();
+    });
+    document.getElementById('cityFilter').addEventListener('change', () => {
+      updateMapMarkers();
+      updateLocationList();
+    });
+    document.getElementById('categoryFilter').addEventListener('change', () => {
+      updateMapMarkers();
+      updateLocationList();
+    });
+
+    // --- (GÜNCELLENDİ) --- Başlangıç
+    window.addEventListener('load', () => {
+      initMap();
+      loadCategories(); // Kategori filtresini doldur
+      loadCities(); // Şehir filtresini doldur
+      loadGeoIndex(); // fetchLocationsForView() yerine
+    });
+  </script>
+
+</body>
+</html>

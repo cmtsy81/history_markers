@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yönetim Paneli - Kategoriler</title>
+  <link rel="stylesheet" href="admin_style.css">
+</head>
+<body>
+
+  <h1>Kategori Yönetimi (Faz 1.1)</h1>
+
+  <h2 id="formTitle">Yeni Kategori Ekle</h2>
+  <form id="categoryForm">
+    <input type="hidden" id="currentEditId" value="">
+
+    <label for="key">Anahtar (key) (örn: 'restaurant'):</label><br>
+    <input type="text" id="key" name="key" required><br>
+
+    <label for="tr">Türkçe (tr):</label><br>
+    <input type="text" id="tr" name="tr" required><br>
+
+    <label for="en">İngilizce (en):</label><br>
+    <input type="text" id="en" name="en" required><br>
+
+    <label for="de">Almanca (de):</label><br>
+    <input type="text" id="de" name="de" required><br>
+
+    <label for="fr">Fransızca (fr):</label><br>
+    <input type="text" id="fr" name="fr" required><br>
+
+    <button type="submit" id="submitBtn">Ekle</button>
+    <button type="button" id="cancelBtn" style="display:none;">İptal</button>
+  </form>
+
+  <h2>Mevcut Kategoriler</h2>
+  <ul id="categoryList">
+    </ul>
+
+  <script>
+    const API_URL = "/api/v1/categories";
+    const listElement = document.getElementById('categoryList');
+    const formElement = document.getElementById('categoryForm');
+    
+    // Form elemanlarını seç
+    const formTitle = document.getElementById('formTitle');
+    const keyInput = document.getElementById('key');
+    const trInput = document.getElementById('tr');
+    const enInput = document.getElementById('en');
+    const deInput = document.getElementById('de');
+    const frInput = document.getElementById('fr');
+    const currentEditIdInput = document.getElementById('currentEditId');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+
+    /**
+     * 1. API'den kategorileri çeker ve listeyi günceller
+     */
+    async function fetchCategories() {
+      try {
+        const response = await fetch(API_URL);
+        const categories = await response.json();
+        listElement.innerHTML = ""; // Listeyi temizle
+
+        if (categories.length === 0) {
+          listElement.innerHTML = "<li>Henüz kategori eklenmemiş.</li>";
+          return;
+        }
+
+        categories.forEach(cat => {
+          const li = document.createElement('li');
+          
+          // Düzenle butonu için verileri data-* attribute'lerine göm
+          li.innerHTML = `
+            <div class="category-info">
+              <strong>${cat.key}</strong>
+              <div class="translations-container">
+                <span class="translation-tag">
+                  <span class="lang-key">TR:</span> ${cat.translations.tr || '---'}
+                </span>
+                <span class="translation-tag">
+                  <span class="lang-key">EN:</span> ${cat.translations.en || '---'}
+                </span>
+                <span class="translation-tag">
+                  <span class="lang-key">DE:</span> ${cat.translations.de || '---'}
+                </span>
+                <span class="translation-tag">
+                  <span class="lang-key">FR:</span> ${cat.translations.fr || '---'}
+                </span>
+              </div>
+            </div>
+            <div class="category-actions">
+              <button class="edit-btn" 
+                data-id="${cat._id}"
+                data-key="${cat.key}"
+                data-tr="${cat.translations.tr || ''}"
+                data-en="${cat.translations.en || ''}"
+                data-de="${cat.translations.de || ''}"
+                data-fr="${cat.translations.fr || ''}"
+              >Düzenle</button>
+              <button class="delete-btn" data-id="${cat._id}">Sil</button>
+            </div>
+          `;
+          listElement.appendChild(li);
+        });
+
+      } catch (err) {
+        listElement.innerHTML = "<li>HATA: Kategoriler yüklenemedi.</li>";
+      }
+    }
+
+    /**
+     * 2. Formu "Ekleme Modu"na sıfırlar
+     */
+    function resetForm() {
+      formTitle.innerText = "Yeni Kategori Ekle";
+      formElement.reset(); // Tüm inputları temizler
+      currentEditIdInput.value = ""; // Gizli ID'yi temizler
+      submitBtn.innerText = "Ekle";
+      cancelBtn.style.display = "none";
+    }
+
+    /**
+     * 3. Form gönderildiğinde (Ekleme VEYA Güncelleme)
+     */
+    formElement.addEventListener('submit', async (e) => {
+      e.preventDefault(); // Sayfa yenilemesini engelle
+
+      const currentId = currentEditIdInput.value;
+      const isEditMode = !!currentId; // Eğer currentId doluysa, düzenleme modundayız
+
+      // Form verilerini 4 dilli JSON formatına getir
+      const categoryData = {
+        key: keyInput.value,
+        translations: {
+          tr: trInput.value,
+          en: enInput.value,
+          de: deInput.value,
+          fr: frInput.value
+        }
+      };
+
+      const method = isEditMode ? 'PUT' : 'POST';
+      const url = isEditMode ? `${API_URL}/${currentId}` : API_URL;
+
+      try {
+        const response = await fetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(categoryData)
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || (isEditMode ? 'Kategori güncellenemedi.' : 'Kategori eklenemedi.'));
+        }
+
+        // Başarılıysa formu sıfırla ve listeyi yenile
+        resetForm();
+        await fetchCategories(); 
+
+      } catch (err) {
+        alert("HATA: " + err.message);
+      }
+    });
+
+    /**
+     * 4. Liste üzerindeki butonlara tıklandığında
+     */
+    listElement.addEventListener('click', async (e) => {
+      const target = e.target;
+
+      // --- SİLME İŞLEMİ ---
+      if (target.classList.contains('delete-btn')) {
+        const id = target.dataset.id;
+        if (!confirm(`ID: ${id}\nBu kategoriyi silmek istediğinizden emin misiniz?`)) return;
+
+        try {
+          const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error('Silme işlemi başarısız.');
+          await fetchCategories(); // Listeyi yenile
+        } catch (err) {
+          alert("HATA: " + err.message);
+        }
+      }
+      
+      // --- DÜZENLEME İŞLEMİ ---
+      if (target.classList.contains('edit-btn')) {
+        // Formu "Düzenleme Modu"na al
+        formTitle.innerText = "Kategoriyi Düzenle";
+        
+        // Gizli ID'yi ayarla
+        currentEditIdInput.value = target.dataset.id;
+
+        // Formu butonun data-* attribute'leri ile doldur
+        keyInput.value = target.dataset.key;
+        trInput.value = target.dataset.tr;
+        enInput.value = target.dataset.en;
+        deInput.value = target.dataset.de;
+        frInput.value = target.dataset.fr;
+        
+        // Butonları güncelle
+        submitBtn.innerText = "Güncelle";
+        cancelBtn.style.display = "inline-block";
+
+        // Sayfanın başına (forma) odaklan
+        window.scrollTo(0, 0);
+      }
+    });
+    
+    /**
+     * 5. "İptal" butonuna tıklandığında formu sıfırla
+     */
+    cancelBtn.addEventListener('click', resetForm);
+
+    // --- SAYFA İLK YÜKLENDİĞİNDE ---
+    fetchCategories();
+
+  </script>
+
+</body>
+</html>

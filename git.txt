@@ -1,0 +1,86 @@
+# === Git Başlatma ve Temel Kaydetme ===
+
+# 1. Proje Klasöründe Git'i Başlat (Sadece bir kez yapılır)
+# Bu komut, klasörde gizli bir .git deposu oluşturur.
+git init
+
+# 2. Tüm Değişiklikleri "Sahneye" Ekle
+# Git'e bir sonraki kayıtta (commit) hangi dosyaları dahil edeceğini söyler.
+# '.' işareti, klasördeki tüm yeni/değiştirilmiş dosyaları ekler.
+git add .
+
+# Belirli bir dosyayı eklemek için:
+# git add server.js
+# git add map.html
+
+# 3. Anlık Görüntüyü Kaydet (Commit)
+# Sahnedeki değişikliklerin kalıcı bir anlık görüntüsünü alır.
+# -m "Mesaj": Bu kayda açıklayıcı bir mesaj eklemek ZORUNLUDUR.
+git commit -m "Projenin ilk kararlı hali: Geo-Index mimarisi tamamlandı."
+# Başka bir örnek:
+# git commit -m "Yeni lokasyon ekleme özelliği eklendi (Faz 4)."
+
+
+# === Durumu Kontrol Etme ve Geçmişi Görme ===
+
+# Projedeki değişikliklerin durumunu gösterir
+# Hangi dosyaların değiştirildiği, hangilerinin sahnede olduğu vb.
+git status
+
+# Projenin tüm kayıt (commit) geçmişini gösterir
+# Her kaydın ID'sini, yazarını, tarihini ve mesajını listeler.
+git log
+
+# Geçmişi daha kısa ve okunabilir formatta gösterir
+git log --oneline --graph
+
+
+# === Geçmiş Sürümlere Göz Atma ve Geri Dönme ===
+
+# Geçmişteki belirli bir kayda (commit) GÖZ ATMAK için
+# Bu komut dosyalarınızı o kayıttaki hale getirir, ancak "geçmişte" olursunuz.
+# <commit_id>: 'git log' komutundan aldığınız ID (genellikle ilk 7 karakter yeterlidir).
+git checkout <commit_id>
+# Örnek: git checkout a1b2c3d
+
+# Tekrar en son sürüme (ana dala) dönmek için
+# Genellikle dalın adı 'main' veya 'master' olur.
+git checkout main
+# VEYA
+# git checkout master
+
+
+# === Dallanma (Branching - Yeni Özellikler Denemek İçin) ===
+
+# Yeni bir "dal" (branch) oluşturur
+# Ana kodunuzu etkilemeden yeni bir özellik üzerinde çalışmak için kullanılır.
+git branch yeni-ozellik-adi
+
+# Oluşturulan yeni dala geçiş yapar
+git checkout yeni-ozellik-adi
+
+# Yeni dalda çalışırken yaptığınız değişiklikleri kaydedersiniz:
+# git add .
+# git commit -m "Yeni özellikteki ilk adım tamamlandı."
+
+# İşiniz bittiğinde ana dala geri dönersiniz:
+git checkout main
+
+# Yeni daldaki değişiklikleri ana dala birleştirirsiniz (merge):
+git merge yeni-ozellik-adi
+
+# İhtiyaç kalmayan bir dalı silersiniz:
+git branch -d yeni-ozellik-adi
+
+
+# === Uzak Depo (GitHub/GitLab - İsteğe Bağlı ama Önerilir) ===
+
+# GitHub/GitLab'da oluşturduğunuz boş depoyu projeye bağlar
+# <github_url>: GitHub'dan kopyaladığınız depo adresi.
+git remote add origin <github_url>
+
+# Yereldeki kayıtlarınızı (commit) ilk kez uzak depoya gönderir
+git push -u origin main
+
+# Sonraki kayıtlarınızı göndermek için (commit attıktan sonra)
+git push

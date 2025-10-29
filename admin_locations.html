@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - Lokasyonlar</title>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #2c3e50;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 320px;
+      background: #ffffff;
+      border-right: 1px solid #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid #f0f0f0;
+      background: #ffffff;
+    }
+
+    .sidebar-header h2 {
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: #1a1a1a;
+    }
+
+    .sidebar-header button {
+      width: 100%;
+      padding: 10px;
+      background: #0099ff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+      margin-bottom: 12px;
+    }
+
+    .sidebar-header button:hover {
+      background: #0080cc;
+    }
+
+    .filter-group {
+      margin-bottom: 12px;
+    }
+
+    .filter-group label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #999;
+      font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .filter-group select {
+      width: 100%;
+      padding: 8px 12px;
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      color: #2c3e50;
+      font-size: 13px;
+    }
+
+    .sidebar-list {
+      list-style: none;
+      overflow-y: auto;
+      flex: 1;
+      padding: 8px 0;
+    }
+
+    .sidebar-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .sidebar-list::-webkit-scrollbar-thumb {
+      background: #d0d0d0;
+      border-radius: 3px;
+    }
+
+    .sidebar-list li {
+      padding: 12px 16px;
+      margin: 0 8px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+    }
+
+    .sidebar-list li:hover {
+      background: #f0f7ff;
+      border-left-color: #0099ff;
+    }
+
+    .sidebar-list li.active {
+      background: #e3f2ff;
+      border-left-color: #0099ff;
+      color: #0066cc;
+      font-weight: 600;
+    }
+
+    /* MAIN CONTENT */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 20px 30px;
+      background: #ffffff;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      color: #1a1a1a;
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 30px;
+    }
+
+    .form-container {
+      display: none;
+      max-width: 1200px;
+    }
+
+    .form-container.active {
+      display: block;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid #e0e0e0;
+      margin-bottom: 30px;
+      background: #ffffff;
+      padding: 0;
+    }
+
+    .tab {
+      padding: 14px 24px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: #999;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tab:hover {
+      color: #0099ff;
+    }
+
+    .tab.active {
+      color: #0099ff;
+      border-bottom-color: #0099ff;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .form-section {
+      background: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .form-section h3 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #0099ff;
+      margin-bottom: 16px;
+      font-weight: 700;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: #2c3e50;
+      margin-bottom: 6px;
+    }
+
+    .form-group input[type="text"],
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 10px 12px;
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #2c3e50;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .form-group input[type="text"]:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      background: #ffffff;
+      border-color: #0099ff;
+      box-shadow: 0 0 0 3px rgba(0,153,255,0.1);
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+    }
+
+    #editMap {
+      height: 300px;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      margin-bottom: 16px;
+    }
+
+    .tags-container {
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 12px;
+      height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tag-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+    }
+
+    .tag-item input[type="checkbox"] {
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
+    }
+
+    .tag-item label {
+      cursor: pointer;
+      margin: 0;
+      font-size: 13px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 30px;
+      padding-top: 24px;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    button[type="submit"],
+    button[type="reset"] {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+
+    button[type="submit"] {
+      background: #0099ff;
+      color: white;
+    }
+
+    button[type="submit"]:hover {
+      background: #0080cc;
+    }
+
+    button[type="reset"] {
+      background: #f0f0f0;
+      color: #2c3e50;
+    }
+
+    button[type="reset"]:hover {
+      background: #e0e0e0;
+    }
+
+    .placeholder {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+
+    @media (max-width: 1024px) {
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+      
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>📍 Lokasyonlar</h2>
+      <button id="newLocationBtn">+ Yeni Lokasyon</button>
+      <div class="filter-group">
+        <label for="cityFilter">Şehir</label>
+        <select id="cityFilter">
+          <option value="">Tüm Şehirler</option>
+        </select>
+      </div>
+    </div>
+    <ul class="sidebar-list" id="locationList">
+      <li style="text-align: center; padding: 20px; color: #999;">Yükleniyor...</li>
+    </ul>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <div class="header">
+      <h1 id="locationTitle">Lokasyon Seçin</h1>
+    </div>
+
+    <div class="content">
+      <form id="locationForm" class="form-container">
+        <input type="hidden" id="currentLocationId">
+
+        <!-- TABS -->
+        <div class="tabs">
+          <div class="tab active" data-lang="tr">🇹🇷 Türkçe</div>
+          <div class="tab" data-lang="en">🇬🇧 English</div>
+          <div class="tab" data-lang="de">🇩🇪 Deutsch</div>
+          <div class="tab" data-lang="fr">🇫🇷 Français</div>
+          <div class="tab" data-lang="settings">⚙️ Ayarlar</div>
+        </div>
+
+        <!-- TR CONTENT -->
+        <div id="content-tr" class="tab-content active">
+          <div class="form-section">
+            <h3>Türkçe (TR) İçeriği</h3>
+            <div class="form-group">
+              <label for="title_tr">Başlık</label>
+              <input type="text" id="title_tr" name="title_tr" placeholder="Lokasyon adı...">
+            </div>
+            <div class="form-group">
+              <label for="desc_tr">Açıklama</label>
+              <textarea id="desc_tr" name="desc_tr" placeholder="Detaylı açıklama..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="audio_tr">Ses Dosyası</label>
+              <input type="text" id="audio_tr" name="audio_tr" placeholder="assets/audio/dosya.mp3">
+            </div>
+          </div>
+        </div>
+
+        <!-- EN CONTENT -->
+        <div id="content-en" class="tab-content">
+          <div class="form-section">
+            <h3>English (EN) Content</h3>
+            <div class="form-group">
+              <label for="title_en">Title</label>
+              <input type="text" id="title_en" name="title_en" placeholder="Location name...">
+            </div>
+            <div class="form-group">
+              <label for="desc_en">Description</label>
+              <textarea id="desc_en" name="desc_en" placeholder="Detailed description..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="audio_en">Audio File</label>
+              <input type="text" id="audio_en" name="audio_en" placeholder="assets/audio/file.mp3">
+            </div>
+          </div>
+        </div>
+
+        <!-- DE CONTENT -->
+        <div id="content-de" class="tab-content">
+          <div class="form-section">
+            <h3>Deutsch (DE) Inhalt</h3>
+            <div class="form-group">
+              <label for="title_de">Titel</label>
+              <input type="text" id="title_de" name="title_de" placeholder="Ortsname...">
+            </div>
+            <div class="form-group">
+              <label for="desc_de">Beschreibung</label>
+              <textarea id="desc_de" name="desc_de" placeholder="Detaillierte Beschreibung..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="audio_de">Audiodatei</label>
+              <input type="text" id="audio_de" name="audio_de" placeholder="assets/audio/datei.mp3">
+            </div>
+          </div>
+        </div>
+
+        <!-- FR CONTENT -->
+        <div id="content-fr" class="tab-content">
+          <div class="form-section">
+            <h3>Français (FR) Contenu</h3>
+            <div class="form-group">
+              <label for="title_fr">Titre</label>
+              <input type="text" id="title_fr" name="title_fr" placeholder="Nom du lieu...">
+            </div>
+            <div class="form-group">
+              <label for="desc_fr">Description</label>
+              <textarea id="desc_fr" name="desc_fr" placeholder="Description détaillée..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="audio_fr">Fichier Audio</label>
+              <input type="text" id="audio_fr" name="audio_fr" placeholder="assets/audio/fichier.mp3">
+            </div>
+          </div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div id="content-settings" class="tab-content">
+          <div class="two-col">
+            <div>
+              <div class="form-section">
+                <h3>Genel Bilgiler</h3>
+                <div class="form-group">
+                  <label for="loc_id">Lokasyon ID (Sabit)</label>
+                  <input type="text" id="loc_id" name="loc_id" readonly style="background: #f0f0f0; cursor: not-allowed;">
+                </div>
+                <div class="form-group">
+                  <label for="loc_city">Şehir</label>
+                  <input type="text" id="loc_city" name="loc_city" placeholder="Budapest">
+                </div>
+                <div class="form-group">
+                  <label for="loc_builtYear">Yapım Yılı</label>
+                  <input type="text" id="loc_builtYear" name="loc_builtYear" placeholder="1896">
+                </div>
+                <div class="form-group">
+                  <label for="loc_thumbnailUrl">Resim Adı</label>
+                  <input type="text" id="loc_thumbnailUrl" name="loc_thumbnailUrl" placeholder="budapest_001.jpg">
+                </div>
+                <div class="form-group">
+                  <label for="loc_isPublished">Yayın Durumu</label>
+                  <select id="loc_isPublished" name="loc_isPublished">
+                    <option value="true">✓ Yayında</option>
+                    <option value="false">✗ Gizli</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <h3>Kategoriler & Etiketler</h3>
+                <div class="form-group">
+                  <label for="loc_category">Kategori</label>
+                  <select id="loc_category" name="loc_category">
+                    <option value="">-- Kategori Seçin --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Etiketler</label>
+                  <div class="tags-container" id="loc_tags_container"></div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="form-section">
+                <h3>Konum (Harita)</h3>
+                <div id="editMap"></div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="loc_lat">Enlem</label>
+                    <input type="text" id="loc_lat" name="loc_lat" placeholder="47.4979">
+                  </div>
+                  <div class="form-group">
+                    <label for="loc_lng">Boylam</label>
+                    <input type="text" id="loc_lng" name="loc_lng" placeholder="19.0402">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button type="submit">💾 Kaydet</button>
+          <button type="reset">↺ Sıfırla</button>
+        </div>
+      </form>
+
+      <div id="placeholder" class="placeholder">
+        <p>Lokasyon seçin veya yeni lokasyon ekleyin</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_LOCATIONS = "http://localhost:3000/api/v1/locations";
+    const API_CITIES = "http://localhost:3000/api/v1/meta/cities";
+    const API_CATEGORIES = "http://localhost:3000/api/v1/categories";
+    const API_TAGS = "http://localhost:3000/api/v1/tags";
+    
+    let allCategories = [];
+    let allTags = [];
+    let editMapInstance = null;
+    let editMapMarker = null;
+
+    const cityFilter = document.getElementById('cityFilter');
+    const locationList = document.getElementById('locationList');
+    const locationForm = document.getElementById('locationForm');
+    const locationTitle = document.getElementById('locationTitle');
+    const placeholder = document.getElementById('placeholder');
+    const currentLocationIdInput = document.getElementById('currentLocationId');
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    const inputs = {
+      tr: { title: document.getElementById('title_tr'), desc: document.getElementById('desc_tr'), audio: document.getElementById('audio_tr') },
+      en: { title: document.getElementById('title_en'), desc: document.getElementById('desc_en'), audio: document.getElementById('audio_en') },
+      de: { title: document.getElementById('title_de'), desc: document.getElementById('desc_de'), audio: document.getElementById('audio_de') },
+      fr: { title: document.getElementById('title_fr'), desc: document.getElementById('desc_fr'), audio: document.getElementById('audio_fr') }
+    };
+
+    async function loadCities() {
+      try {
+        const res = await fetch(API_CITIES);
+        const cities = await res.json();
+        cities.forEach(city => {
+          const opt = document.createElement('option');
+          opt.value = city;
+          opt.textContent = city.charAt(0).toUpperCase() + city.slice(1);
+          cityFilter.appendChild(opt);
+        });
+      } catch (err) {
+        console.error("Şehirler yüklenemedi:", err);
+      }
+    }
+
+    async function loadMetaData() {
+      try {
+        const catRes = await fetch(API_CATEGORIES);
+        allCategories = await catRes.json();
+        const catSelect = document.getElementById('loc_category');
+        allCategories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat.key;
+          opt.textContent = cat.translations.tr;
+          catSelect.appendChild(opt);
+        });
+
+        const tagRes = await fetch(API_TAGS);
+        allTags = await tagRes.json();
+        const tagsContainer = document.getElementById('loc_tags_container');
+        tagsContainer.innerHTML = '';
+        allTags.forEach(tag => {
+          const div = document.createElement('div');
+          div.className = 'tag-item';
+          div.innerHTML = `
+            <input type="checkbox" id="tag-${tag.key}" value="${tag.key}">
+            <label for="tag-${tag.key}">${tag.translations.tr}</label>
+          `;
+          tagsContainer.appendChild(div);
+        });
+      } catch (err) {
+        console.error("Meta veri yüklenemedi:", err);
+      }
+    }
+
+    function initEditMap(lat, lng) {
+      if (editMapInstance) {
+        editMapInstance.remove();
+        editMapInstance = null;
+      }
+      
+      editMapInstance = L.map('editMap').setView([lat, lng], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(editMapInstance);
+      editMapMarker = L.marker([lat, lng], { draggable: true }).addTo(editMapInstance);
+      
+      editMapMarker.on('dragend', (e) => {
+        const coords = e.target.getLatLng();
+        document.getElementById('loc_lat').value = coords.lat.toFixed(6);
+        document.getElementById('loc_lng').value = coords.lng.toFixed(6);
+      });
+
+      editMapInstance.on('click', (e) => {
+        editMapMarker.setLatLng(e.latlng);
+        document.getElementById('loc_lat').value = e.latlng.lat.toFixed(6);
+        document.getElementById('loc_lng').value = e.latlng.lng.toFixed(6);
+      });
+    }
+
+    async function loadLocations(city = '') {
+      locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Yükleniyor...</li>';
+      try {
+        let url = `${API_LOCATIONS}?lang=tr&sw_lat=-90&sw_lng=-180&ne_lat=90&ne_lng=180`;
+        if (city) url += `&city=${city}`;
+        const res = await fetch(url);
+        const locs = await res.json();
+        locationList.innerHTML = '';
+        if (locs.length === 0) {
+          locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Lokasyon bulunamadı</li>';
+          return;
+        }
+        locs.forEach(loc => {
+          const li = document.createElement('li');
+          li.textContent = loc.title || loc.id;
+          li.dataset.id = loc.id;
+          locationList.appendChild(li);
+        });
+      } catch (err) {
+        console.error("Lokasyonlar yüklenemedi:", err);
+        locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Hata oluştu</li>';
+      }
+    }
+
+    locationList.addEventListener('click', async (e) => {
+      if (e.target.tagName !== 'LI') return;
+      const id = e.target.dataset.id;
+      if (!id) return;
+
+      document.querySelectorAll('.sidebar-list li.active').forEach(li => li.classList.remove('active'));
+      e.target.classList.add('active');
+
+      try {
+        const res = await fetch(`${API_LOCATIONS}/${id}`);
+        const loc = await res.json();
+
+        locationTitle.textContent = loc.title;
+        currentLocationIdInput.value = loc.id;
+        placeholder.style.display = 'none';
+        locationForm.classList.add('active');
+
+        ['tr', 'en', 'de', 'fr'].forEach(lang => {
+          if (loc.translations[lang]) {
+            inputs[lang].title.value = loc.translations[lang].title || '';
+            inputs[lang].desc.value = loc.translations[lang].description || '';
+            inputs[lang].audio.value = loc.translations[lang].audioPath || '';
+          }
+        });
+
+        document.getElementById('loc_id').value = loc.id;
+        document.getElementById('loc_city').value = loc.city || '';
+        document.getElementById('loc_builtYear').value = loc.builtYear || '';
+        document.getElementById('loc_thumbnailUrl').value = loc.thumbnailUrl || '';
+        document.getElementById('loc_isPublished').value = loc.isPublished ? 'true' : 'false';
+        document.getElementById('loc_category').value = loc.categoryKey || '';
+
+        document.querySelectorAll('#loc_tags_container input[type="checkbox"]').forEach(chk => {
+          chk.checked = loc.tagKeys && loc.tagKeys.includes(chk.value);
+        });
+
+        if (loc.lat && loc.lng) {
+          initEditMap(loc.lat, loc.lng);
+          document.getElementById('loc_lat').value = loc.lat;
+          document.getElementById('loc_lng').value = loc.lng;
+        }
+
+        switchTab('tr');
+      } catch (err) {
+        console.error("Lokasyon yüklenemedi:", err);
+      }
+    });
+
+    locationForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = currentLocationIdInput.value;
+      if (!id) return;
+
+      const updateData = {
+        id: document.getElementById('loc_id').value,
+        city: document.getElementById('loc_city').value,
+        builtYear: parseInt(document.getElementById('loc_builtYear').value) || null,
+        thumbnailUrl: document.getElementById('loc_thumbnailUrl').value,
+        isPublished: document.getElementById('loc_isPublished').value === 'true',
+        categoryKey: document.getElementById('loc_category').value,
+        tagKeys: Array.from(document.querySelectorAll('#loc_tags_container input[type="checkbox"]:checked')).map(el => el.value),
+        translations: {
+          tr: { title: inputs.tr.title.value, description: inputs.tr.desc.value, audioPath: inputs.tr.audio.value },
+          en: { title: inputs.en.title.value, description: inputs.en.desc.value, audioPath: inputs.en.audio.value },
+          de: { title: inputs.de.title.value, description: inputs.de.desc.value, audioPath: inputs.de.audio.value },
+          fr: { title: inputs.fr.title.value, description: inputs.fr.desc.value, audioPath: inputs.fr.audio.value }
+        },
+        lat: parseFloat(document.getElementById('loc_lat').value) || null,
+        lng: parseFloat(document.getElementById('loc_lng').value) || null
+      };
+
+      try {
+        const res = await fetch(`${API_LOCATIONS}/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData)
+        });
+        if (res.ok) {
+          alert('✓ Lokasyon kaydedildi!');
+          const li = document.querySelector(`[data-id="${id}"]`);
+          if (li) li.textContent = updateData.translations.tr.title;
+        } else {
+          alert('✗ Kaydetme başarısız');
+        }
+      } catch (err) {
+        console.error("Kaydetme hatası:", err);
+        alert('✗ Hata: ' + err.message);
+      }
+    });
+
+    function switchTab(lang) {
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.lang === lang));
+      tabContents.forEach(c => c.classList.toggle('active', c.id === `content-${lang}`));
+      
+      // Harita tab açıldığında render et
+      if (lang === 'settings' && editMapInstance) {
+        setTimeout(() => {
+          editMapInstance.invalidateSize();
+        }, 100);
+      }
+    }
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => switchTab(tab.dataset.lang));
+    });
+
+    cityFilter.addEventListener('change', () => loadLocations(cityFilter.value));
+
+    loadCities();
+    loadLocations();
+    loadMetaData();
+  </script>
+</body>
+</html>
