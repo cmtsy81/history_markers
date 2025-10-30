@@ -110,7 +110,34 @@ function initEditMap(lat, lng) {
   }
   
   editMapInstance = L.map('editMap').setView([lat, lng], 15);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(editMapInstance);
+  
+  // BASE LAYERS
+  const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    name: 'Street'
+  });
+  
+  const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © Esri',
+    name: 'Satellite'
+  });
+  
+  const tonerLayer = L.tileLayer('https://tile.openstreetmap.de/tiles/osmde/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    name: 'Toner'
+  });
+  
+  streetLayer.addTo(editMapInstance);
+  
+  // LAYER CONTROL
+  const baseLayers = {
+    'Street': streetLayer,
+    'Satellite': satelliteLayer,
+    'Toner': tonerLayer
+  };
+  
+  L.control.layers(baseLayers).addTo(editMapInstance);
+  
   editMapMarker = L.marker([lat, lng], { draggable: true }).addTo(editMapInstance);
   
   editMapMarker.on('dragend', (e) => {
