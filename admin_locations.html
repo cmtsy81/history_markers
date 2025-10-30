@@ -493,7 +493,7 @@
                 </div>
                 <div class="form-group">
                   <label for="loc_city">Şehir</label>
-                  <input type="text" id="loc_city" name="loc_city" placeholder="Budapest">
+                  <input type="text" id="loc_city" name="loc_city" placeholder="budapest">
                 </div>
                 <div class="form-group">
                   <label for="loc_builtYear">Yapım Yılı</label>
@@ -548,7 +548,7 @@
 
         <div class="buttons">
           <button type="submit">💾 Kaydet</button>
-          <button type="reset">↺ Sıfırla</button>
+          <button type="button" id="deleteBtn" style="background: #ff4444; display: none;">🗑️ Sil</button>
         </div>
       </form>
 
@@ -569,8 +569,20 @@
     let editMapInstance = null;
     let editMapMarker = null;
 
-    let cityCache = new Map(); // <-- YENİ ÖNBELLEK OBJESİ
-    let currentCityData = []; // <-- O AN GÖSTERİLEN ŞEHRİN VERİSİ
+    let cityCache = new Map();
+    let currentCityData = [];
+    let locationDetailsCache = new Map(); // 🆕 Detay cache'i
+
+    // 🆕 STANDART LOKASYON (İzmir Konak - Saat Kulesi)
+    const DEFAULT_LOCATION = {
+      lat: 38.4237,
+      lng: 27.1449,
+      city: 'izmir',
+      title: 'Yeni Lokasyon'
+    };
+
+    // 🆕 SON SEÇİLİ LOKASYONUN KONUMU
+    let lastSelectedLocation = null;
 
     const cityFilter = document.getElementById('cityFilter');
     const categoryFilter = document.getElementById('categoryFilter');
@@ -615,12 +627,10 @@
           opt.textContent = cat.translations.tr;
           catSelect.appendChild(opt);
 
-          // --- YENİ EKLENEN KISIM (FİLTRE İÇİN) ---
           const filterOpt = document.createElement('option');
           filterOpt.value = cat.key;
           filterOpt.textContent = cat.translations.tr;
-          categoryFilter.appendChild(filterOpt); // <-- Yeni filtreye de ekle
-          // --- BİTTİ ---
+          categoryFilter.appendChild(filterOpt);
         });
 
         const tagRes = await fetch(API_TAGS);
@@ -664,89 +674,142 @@
       });
     }
 
-    /**
- * (GÜNCELLENDİ - "Şehir Bazlı Önbellek" Mimarisi)
- * Ana veri yükleme fonksiyonu. Sadece 'cityFilter' değiştiğinde API'yi tetikler.
- */
-async function loadLocations(selectedCity) {
-  locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Yükleniyor...</li>';
+    // 🆕 DETAY VERİSİNİ CACHE'LE ÇEKEN FONKSİYON
+    async function getLocationDetails(id) {
+      if (locationDetailsCache.has(id)) {
+        console.log(`📦 "${id}" cache'den yükleniyor...`);
+        return locationDetailsCache.get(id);
+      }
 
-  // Şehir seçilmediyse listeyi boşalt
-  if (!selectedCity) {
-    currentCityData = [];
-    renderLocationList([]); // Listeyi temizle
-    return;
-  }
+      console.log(`🌐 "${id}" API'den çekiliyor...`);
+      try {
+        const res = await fetch(`${API_LOCATIONS}/${id}`);
+        const loc = await res.json();
+        locationDetailsCache.set(id, loc);
+        return loc;
+      } catch (err) {
+        console.error("Lokasyon yüklenemedi:", err);
+        throw err;
+      }
+    }
 
-  // 1. Adım: Önbelleği (Cache) Kontrol Et
-  if (cityCache.has(selectedCity)) {
-    console.log(`"${selectedCity}" önbellekten yükleniyor...`);
-    currentCityData = cityCache.get(selectedCity);
-    applyFiltersAndRenderList(); // Direkt cache'den render et
-    return;
-  }
+    async function loadLocations(selectedCity) {
+      locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Yükleniyor...</li>';
 
-  // 2. Adım: Önbellekte yoksa API'den Çek
-  console.log(`"${selectedCity}" API'den çekiliyor...`);
-  try {
-    // YENİ API'Yİ ÇAĞIR
-    let url = `${API_LOCATIONS.replace('locations', 'admin/list-by-city')}?city=${selectedCity}`;
-    const res = await fetch(url);
-    const locs = await res.json();
+      if (!selectedCity) {
+        currentCityData = [];
+        renderLocationList([]);
+        return;
+      }
 
-    cityCache.set(selectedCity, locs); // 3. Adım: Önbelleğe Kaydet
-    currentCityData = locs;
-    applyFiltersAndRenderList(); // API'den gelen taze veriyi render et
+      if (cityCache.has(selectedCity)) {
+        console.log(`"${selectedCity}" önbellekten yükleniyor...`);
+        currentCityData = cityCache.get(selectedCity);
+        applyFiltersAndRenderList();
+        return;
+      }
 
-  } catch (err) {
-    console.error("Lokasyonlar yüklenemedi:", err);
-    locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Hata oluştu</li>';
-  }
-}
+      console.log(`"${selectedCity}" API'den çekiliyor...`);
+      try {
+        let url = `${API_LOCATIONS.replace('locations', 'admin/list-by-city')}?city=${selectedCity}`;
+        const res = await fetch(url);
+        const locs = await res.json();
 
+        cityCache.set(selectedCity, locs);
+        currentCityData = locs;
+        applyFiltersAndRenderList();
 
-    /**
- * (YENİ)
- * Verilen lokasyon dizisini sol menüye HTML olarak basar.
- */
-function renderLocationList(locationsToRender) {
-  locationList.innerHTML = ''; // Listeyi temizle
+      } catch (err) {
+        console.error("Lokasyonlar yüklenemedi:", err);
+        locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Hata oluştu</li>';
+      }
+    }
 
-  if (locationsToRender.length === 0) {
-    locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Lokasyon bulunamadı</li>';
-    return;
-  }
+    function renderLocationList(locationsToRender) {
+      locationList.innerHTML = '';
 
-  locationsToRender.forEach(loc => {
-    const li = document.createElement('li');
-    // Admin panelinde her zaman TR başlığı gösterelim (veya 'en' fallback)
-    const title = loc.translations?.tr?.title || loc.translations?.en?.title || loc.id;
-    li.textContent = title;
-    li.dataset.id = loc.id;
-    locationList.appendChild(li);
-  });
-}
+      if (locationsToRender.length === 0) {
+        locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Lokasyon bulunamadı</li>';
+        return;
+      }
 
-/**
- * (YENİ)
- * Kategori filtresini o anki şehir verisine (currentCityData) uygular
- * ve listeyi yeniden çizer. API isteği ATMAZ.
- */
-function applyFiltersAndRenderList() {
-  const selectedCategory = categoryFilter.value;
+      locationsToRender.forEach(loc => {
+        const li = document.createElement('li');
+        const title = loc.translations?.tr?.title || loc.translations?.en?.title || loc.id;
+        li.textContent = title;
+        li.dataset.id = loc.id;
+        locationList.appendChild(li);
+      });
+    }
 
-  if (!selectedCategory) {
-    renderLocationList(currentCityData); // Kategori filtresi yoksa tümünü göster
-    return;
-  }
+    function applyFiltersAndRenderList() {
+      const selectedCategory = categoryFilter.value;
 
-  // Kategoriye göre client-side filtrele
-  const filteredData = currentCityData.filter(loc => loc.categoryKey === selectedCategory);
-  renderLocationList(filteredData);
-}
+      if (!selectedCategory) {
+        renderLocationList(currentCityData);
+        return;
+      }
 
+      const filteredData = currentCityData.filter(loc => loc.categoryKey === selectedCategory);
+      renderLocationList(filteredData);
+    }
 
+    // 🆕 YENI LOKASYON BUTONUNA TIKLAMA
+    document.getElementById('newLocationBtn').addEventListener('click', async (e) => {
+      e.preventDefault();
 
+      locationForm.classList.add('active');
+      placeholder.style.display = 'none';
+      
+      document.getElementById('currentLocationId').value = '';
+      locationTitle.textContent = '🆕 Yeni Lokasyon';
+      
+      // 🆕 DELETE BUTONU GIZLE (yeni lokasyon için)
+      document.getElementById('deleteBtn').style.display = 'none';
+      
+      ['tr', 'en', 'de', 'fr'].forEach(lang => {
+        inputs[lang].title.value = '';
+        inputs[lang].desc.value = '';
+        inputs[lang].audio.value = '';
+      });
+
+      document.getElementById('loc_id').value = '';
+      document.getElementById('loc_builtYear').value = '';
+      document.getElementById('loc_thumbnailUrl').value = '';
+      document.getElementById('loc_isPublished').value = 'false';
+      document.getElementById('loc_category').value = '';
+      
+      document.querySelectorAll('#loc_tags_container input[type="checkbox"]').forEach(chk => {
+        chk.checked = false;
+      });
+
+      // 🆕 KONUM LOJİĞİ
+      let newLat, newLng, newCity;
+
+      if (lastSelectedLocation) {
+        newLat = lastSelectedLocation.lat;
+        newLng = lastSelectedLocation.lng;
+        newCity = lastSelectedLocation.city;
+        console.log(`📍 Marker seçili: ${newCity} konumundan yeni lokasyon oluşturuluyor...`);
+      } else {
+        newLat = DEFAULT_LOCATION.lat;
+        newLng = DEFAULT_LOCATION.lng;
+        newCity = DEFAULT_LOCATION.city;
+        console.log(`📍 Default konum kullanılıyor: İzmir Konak Saat Kulesi`);
+      }
+
+      document.getElementById('loc_lat').value = newLat;
+      document.getElementById('loc_lng').value = newLng;
+      document.getElementById('loc_city').value = newCity;
+
+      initEditMap(newLat, newLng);
+
+      switchTab('tr');
+
+      document.querySelectorAll('.sidebar-list li.active').forEach(li => li.classList.remove('active'));
+    });
+
+    // 🆕 MARKER SEÇİLDİĞİNDE SON KONUMU KAYDET
     locationList.addEventListener('click', async (e) => {
       if (e.target.tagName !== 'LI') return;
       const id = e.target.dataset.id;
@@ -756,13 +819,23 @@ function applyFiltersAndRenderList() {
       e.target.classList.add('active');
 
       try {
-        const res = await fetch(`${API_LOCATIONS}/${id}`);
-        const loc = await res.json();
+        const loc = await getLocationDetails(id);
 
-        locationTitle.textContent = loc.title;
+        // 🆕 SON SEÇİLİ LOKASYONU KAYDET
+        lastSelectedLocation = {
+          lat: loc.lat,
+          lng: loc.lng,
+          city: loc.city,
+          id: loc.id
+        };
+
+        locationTitle.textContent = loc.translations.tr.title || loc.translations.en.title;
         currentLocationIdInput.value = loc.id;
         placeholder.style.display = 'none';
         locationForm.classList.add('active');
+
+        // 🆕 DELETE BUTONU GÖSTER (mevcut lokasyon için)
+        document.getElementById('deleteBtn').style.display = 'block';
 
         ['tr', 'en', 'de', 'fr'].forEach(lang => {
           if (loc.translations[lang]) {
@@ -795,18 +868,17 @@ function applyFiltersAndRenderList() {
       }
     });
 
+    // 🆕 YENİ LOKASYON KAYDETME (POST/PUT)
     locationForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = currentLocationIdInput.value;
-      if (!id) return;
 
       const updateData = {
-        id: document.getElementById('loc_id').value,
-        city: document.getElementById('loc_city').value,
+        city: document.getElementById('loc_city').value.toLowerCase(),
         builtYear: parseInt(document.getElementById('loc_builtYear').value) || null,
         thumbnailUrl: document.getElementById('loc_thumbnailUrl').value,
         isPublished: document.getElementById('loc_isPublished').value === 'true',
-        categoryKey: document.getElementById('loc_category').value,
+        categoryKey: document.getElementById('loc_category').value || null,
         tagKeys: Array.from(document.querySelectorAll('#loc_tags_container input[type="checkbox"]:checked')).map(el => el.value),
         translations: {
           tr: { title: inputs.tr.title.value, description: inputs.tr.desc.value, audioPath: inputs.tr.audio.value },
@@ -819,29 +891,107 @@ function applyFiltersAndRenderList() {
       };
 
       try {
-        const res = await fetch(`${API_LOCATIONS}/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updateData)
-        });
-        if (res.ok) {
-          alert('✓ Lokasyon kaydedildi!');
-          const li = document.querySelector(`[data-id="${id}"]`);
-          if (li) li.textContent = updateData.translations.tr.title;
+        // 🆕 YENİ LOKASYON MI, GÜNCELLEME Mİ?
+        if (!id) {
+          // POST - YENİ LOKASYON OLUŞTUR
+          console.log('📝 Yeni lokasyon oluşturuluyor...');
+          const res = await fetch(API_LOCATIONS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData)
+          });
+
+          if (res.ok) {
+            const newLocation = await res.json();
+            alert('✓ Yeni lokasyon oluşturuldu!');
+            
+            locationDetailsCache.set(newLocation.id, newLocation);
+            
+            const selectedCity = cityFilter.value;
+            if (selectedCity === newLocation.city) {
+              loadLocations(selectedCity);
+            }
+            
+            locationForm.classList.remove('active');
+            placeholder.style.display = 'block';
+            locationTitle.textContent = 'Lokasyon Seçin';
+            lastSelectedLocation = null;
+          } else {
+            alert('✗ Oluşturma başarısız');
+          }
         } else {
-          alert('✗ Kaydetme başarısız');
+          // PUT - GÜNCELLE
+          console.log('✏️ Lokasyon güncelleniyor...');
+          updateData.id = id;
+          
+          const res = await fetch(`${API_LOCATIONS}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData)
+          });
+
+          if (res.ok) {
+            alert('✓ Lokasyon kaydedildi!');
+            locationDetailsCache.delete(id);
+            
+            const li = document.querySelector(`[data-id="${id}"]`);
+            if (li) li.textContent = updateData.translations.tr.title;
+          } else {
+            alert('✗ Kaydetme başarısız');
+          }
         }
       } catch (err) {
-        console.error("Kaydetme hatası:", err);
+        console.error("İşlem hatası:", err);
         alert('✗ Hata: ' + err.message);
       }
     });
 
+    // 🆕 DELETE BUTONU
+    document.getElementById('deleteBtn').addEventListener('click', async () => {
+      const id = currentLocationIdInput.value;
+      if (!id) return;
+
+      // Popup confirmation
+      const confirmed = confirm(`⚠️ Bu lokasyonu silmek istediğine emin misin?\n\n"${locationTitle.textContent}"\n\nBu işlem geri alınamaz!`);
+      
+      if (!confirmed) {
+        console.log("Silme işlemi iptal edildi");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_LOCATIONS}/${id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (res.ok) {
+          alert('✓ Lokasyon silindi!');
+          locationDetailsCache.delete(id);
+          
+          // Listeyi yenile
+          const selectedCity = cityFilter.value;
+          if (selectedCity) {
+            loadLocations(selectedCity);
+          }
+          
+          // Form temizle
+          locationForm.classList.remove('active');
+          placeholder.style.display = 'block';
+          locationTitle.textContent = 'Lokasyon Seçin';
+          lastSelectedLocation = null;
+        } else {
+          alert('✗ Silme başarısız');
+        }
+      } catch (err) {
+        console.error("Silme hatası:", err);
+        alert('✗ Hata: ' + err.message);
+      }
+    });
     function switchTab(lang) {
       tabs.forEach(t => t.classList.toggle('active', t.dataset.lang === lang));
       tabContents.forEach(c => c.classList.toggle('active', c.id === `content-${lang}`));
       
-      // Harita tab açıldığında render et
       if (lang === 'settings' && editMapInstance) {
         setTimeout(() => {
           editMapInstance.invalidateSize();
@@ -853,33 +1003,19 @@ function applyFiltersAndRenderList() {
       tab.addEventListener('click', () => switchTab(tab.dataset.lang));
     });
 
-    // Her iki filtre değiştiğinde de çalışacak ortak fonksiyon
-      function handleFilterChange() {
-        const selectedCity = cityFilter.value;
-        const selectedCategory = categoryFilter.value;
-        loadLocations(selectedCity, selectedCategory);
-      }
+    cityFilter.addEventListener('change', () => {
+      locationForm.classList.remove('active');
+      placeholder.style.display = 'block';
+      locationTitle.textContent = "Lokasyon Seçin";
 
-      // --- (GÜNCELLENDİ) --- Event Listeners
+      loadLocations(cityFilter.value);
+    });
 
-// ANA TETİKLEYİCİ: Şehir filtresi API'yi çağırır
-cityFilter.addEventListener('change', () => {
-  // Formu gizle/placeholder'ı göster
-  locationForm.classList.remove('active');
-  placeholder.style.display = 'block';
-  locationTitle.textContent = "Lokasyon Seçin";
-
-  // Veriyi çek
-  loadLocations(cityFilter.value);
-});
-
-// İKİNCİL FİLTRE: Kategori filtresi SADECE cache'i filtreler, API'yi ÇAĞIRMAZ
-categoryFilter.addEventListener('change', () => {
-  applyFiltersAndRenderList();
-});
+    categoryFilter.addEventListener('change', () => {
+      applyFiltersAndRenderList();
+    });
 
     loadCities();
-    //loadLocations();
     loadMetaData();
   </script>
 </body>

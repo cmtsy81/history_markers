@@ -337,6 +337,104 @@ app.get('/api/v1/meta/cities', async (req, res) => {
 
 
 
+// server.js - ŞU KODU, GET /api/v1/admin/list-by-city ÜSTÜNE EKLE
+// Yani GET /api/v1/admin/list-by-city'den ÖNCESİ koy
+
+/**
+ * Helper: Benzersiz lokasyon ID oluştur
+ * Format: "{city}_{number}" (örn: budapest_002, istanbul_015)
+ */
+async function generateLocationId(city) {
+  try {
+    const lastLocation = await db.collection('locations')
+      .find({ id: { $regex: `^${city}_` } })
+      .sort({ _id: -1 })
+      .limit(1)
+      .toArray();
+
+    if (lastLocation.length === 0) {
+      return `${city}_001`;
+    }
+
+    const lastId = lastLocation[0].id;
+    const lastNumber = parseInt(lastId.split('_')[1]);
+    const newNumber = String(lastNumber + 1).padStart(3, '0');
+    
+    return `${city}_${newNumber}`;
+  } catch (err) {
+    console.error("ID oluşturma hatası:", err);
+    return `${city}_001`;
+  }
+}
+
+/**
+ * POST /api/v1/locations
+ * Yeni lokasyon oluştur
+ */
+app.post('/api/v1/locations', async (req, res) => {
+  try {
+    const { 
+      city, lat, lng, translations, builtYear, thumbnailUrl, 
+      isPublished, categoryKey, tagKeys
+    } = req.body;
+
+    // Validasyon
+    if (!city || lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: "Şehir, lat ve lng zorunludur." });
+    }
+
+    if (!translations || !translations.tr || !translations.tr.title) {
+      return res.status(400).json({ error: "TR başlığı zorunludur." });
+    }
+
+    // Benzersiz ID oluştur (budapest_001 formatında)
+    const newId = await generateLocationId(city.toLowerCase());
+
+    const newLocation = {
+      id: newId,
+      city: city.toLowerCase(),
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      location: {
+        type: "Point",
+        coordinates: [parseFloat(lng), parseFloat(lat)] // GeoJSON: [lng, lat]
+      },
+      builtYear: builtYear || null,
+      thumbnailUrl: thumbnailUrl || '',
+      imageUrls: [],
+      isPublished: isPublished || false,
+      categoryKey: categoryKey || null,
+      tagKeys: tagKeys || [],
+      address: null,
+      openingHours: null,
+      websiteUrl: null,
+      ticketUrl: null,
+      ourScore: null,
+      packageId: null,
+      translations: {
+        tr: translations.tr || { title: '', description: '', audioPath: '' },
+        en: translations.en || { title: '', description: '', audioPath: '' },
+        de: translations.de || { title: '', description: '', audioPath: '' },
+        fr: translations.fr || { title: '', description: '', audioPath: '' }
+      },
+      lastUpdated: new Date()
+    };
+
+    const result = await db.collection('locations').insertOne(newLocation);
+
+    console.log(`✅ Yeni lokasyon oluşturuldu: ${newId} (${city})`);
+    res.status(201).json(newLocation);
+
+  } catch (err) {
+    console.error("Lokasyon oluşturma hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+
+
+
+
   /**
    * --- (YENİ) ---
    * GET /api/v1/admin/list-by-city
@@ -406,23 +504,64 @@ app.get('/api/v1/locations/:id', async (req, res) => {
  * Lokasyon yönetim panelindeki "Kaydet" butonu.
  */
 app.put('/api/v1/locations/:id', async (req, res) => {
-  try {
-    // ... (Mevcut PUT locations/:id kodunuz - değişiklik yok) ...
-    const { id } = req.params;
-    const updateData = req.body;
-    delete updateData._id; 
-    const result = await db.collection('locations').updateOne(
-      { id: id },
-      { $set: updateData }
-    );
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: "Güncellenecek lokasyon bulunamadı." });
-    }
-    res.json({ message: "Lokasyon başarıyla güncellendi.", updatedId: id });
-  } catch (err) {
-    console.error("Lokasyon güncelleme hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    delete updateData._id;
+    
+    // GeoJSON location objesi güncelle (eğer lat/lng değişti ise)
+    if (updateData.lat !== undefined && updateData.lng !== undefined) {
+      updateData.location = {
+        type: "Point",
+        coordinates: [parseFloat(updateData.lng), parseFloat(updateData.lat)]
+      };
+    }
+    
+    // lastUpdated timestamp'ı güncelle
+    updateData.lastUpdated = new Date();
+
+    const result = await db.collection('locations').updateOne(
+      { id: id },
+      { $set: updateData }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: "Güncellenecek lokasyon bulunamadı." });
+    }
+
+    console.log(`✅ Lokasyon güncellendi: ${id}`);
+    res.json({ message: "Lokasyon başarıyla güncellendi.", updatedId: id });
+
+  } catch (err) {
+    console.error("Lokasyon güncelleme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+
+
+/**
+ * DELETE /api/v1/locations/:id
+ * Lokasyonu sil
+ * Bu kodu, PUT endpoint'inden SONRA ekle
+ */
+app.delete('/api/v1/locations/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await db.collection('locations').deleteOne({ id: id });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: "Silinecek lokasyon bulunamadı." });
+    }
+
+    console.log(`✅ Lokasyon silindi: ${id}`);
+    res.status(200).json({ message: "Lokasyon başarıyla silindi.", deletedId: id });
+
+  } catch (err) {
+    console.error("Lokasyon silme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 
 
