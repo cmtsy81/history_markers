@@ -275,6 +275,74 @@
       margin-bottom: 16px;
     }
 
+/* 🆕 HARITA ARAMA */
+.map-search-container {
+  margin-bottom: 16px;
+  display: flex;
+  gap: 8px;
+  position: relative;  /* ✅ EKLENDI */
+}
+
+.map-search-container input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.map-search-container button {
+  padding: 10px 16px;
+  background: #0099ff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.map-search-container button:hover {
+  background: #0080cc;
+}
+
+/* 🆕 ARAMA SONUÇLARI DROPDOWN */
+.search-results-dropdown {
+  position: absolute;
+  top: 100%;  /* ✅ EKLENDI - Search input'un altında başlasın */
+  left: 0;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 10001;  /* ✅ ARTTIRILDI - Harita ve diğer elemanlarn üstünde */
+  max-height: 300px;
+  overflow-y: auto;
+  width: 100%;
+  display: none;
+  margin-top: 4px;  /* ✅ EKLENDI - Küçük boşluk */
+}
+
+.search-results-dropdown.active {
+  display: block;
+}
+
+.search-result-item {
+  padding: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.search-result-item:hover {
+  background: #f5f5f5;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
     .tags-container {
       background: #f8f9fa;
       border: 1px solid #e0e0e0;
@@ -679,6 +747,11 @@
             <div>
               <div class="form-section">
                 <h3>Konum (Harita)</h3>
+                <div class="map-search-container">
+                  <input type="text" id="mapSearchInput" placeholder="Yer adı ara (Eiffel Tower, Paris vb)...">
+                  <button type="button" id="mapSearchBtn">🔍 Ara</button>
+                  <div id="searchResultsDropdown" class="search-results-dropdown"></div>
+                </div>
                 <div id="editMap"></div>
                 <div class="form-row">
                   <div class="form-group">
@@ -1178,7 +1251,84 @@
       });
     });
 
+    // 🆕 HARITA ARAMA FONKSİYONU
+    async function searchLocation(query) {
+      if (!query.trim()) {
+        showToast('Yer adı yazınız', 'info');
+        return;
+      }
+
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=10`
+        );
+        const results = await res.json();
+
+        if (results.length === 0) {
+          showToast('❌ Yer bulunamadı', 'error');
+          return;
+        }
+
+        // Dropdown'u doldur
+        const dropdown = document.getElementById('searchResultsDropdown');
+        dropdown.innerHTML = '';
+        dropdown.classList.add('active');
+
+        results.forEach((result, index) => {
+          const div = document.createElement('div');
+          div.className = 'search-result-item';
+          div.textContent = result.display_name;
+          div.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            selectSearchResult(result);
+            dropdown.classList.remove('active');
+            document.getElementById('mapSearchInput').value = result.display_name;
+          });
+          dropdown.appendChild(div);
+        });
+
+      } catch (err) {
+        console.error("Arama hatası:", err);
+        showToast('Arama sırasında hata oluştu', 'error');
+      }
+    }
+
+    function selectSearchResult(result) {
+      const { lat, lon, display_name } = result;
+      
+      // Haritayı oraya fly et
+      if (editMapInstance) {
+        editMapInstance.flyTo([lat, lon], 15, { duration: 1 });
+        editMapMarker.setLatLng([lat, lon]);
+        
+        // Koordinatları forma yaz
+        document.getElementById('loc_lat').value = parseFloat(lat).toFixed(6);
+        document.getElementById('loc_lng').value = parseFloat(lon).toFixed(6);
+        
+        showToast(`✓ ${display_name.split(',')[0]}`, 'success');
+      }
+    }
+
+    // Arama butonu
+document.getElementById('mapSearchBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const query = document.getElementById('mapSearchInput').value;
+  searchLocation(query);
+});
+
+// Enter tuşu
+document.getElementById('mapSearchInput').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    e.stopPropagation();
+    const query = document.getElementById('mapSearchInput').value;
+    searchLocation(query);
+  }
+});
     function switchTab(lang) {
+
       tabs.forEach(t => t.classList.toggle('active', t.dataset.lang === lang));
       tabContents.forEach(c => c.classList.toggle('active', c.id === `content-${lang}`));
       
