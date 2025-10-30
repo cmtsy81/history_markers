@@ -52,6 +52,13 @@ app.get('/api/v1/locations', async (req, res) => {
     if (city && city.trim() !== '') {
       query.city = city;
     }
+
+// --- YENİ EKLENEN KATEGORİ FİLTRESİ KODU ---
+const { categoryKey } = req.query;
+if (categoryKey && categoryKey.trim() !== '') {
+  query.categoryKey = categoryKey;
+}
+// --- BİTTİ ---
     const pipeline = [
       { $match: query },
       {
@@ -328,6 +335,50 @@ app.get('/api/v1/meta/cities', async (req, res) => {
   }
 });
 
+
+
+  /**
+   * --- (YENİ) ---
+   * GET /api/v1/admin/list-by-city
+   * Admin paneli için, belirli bir şehrin "hafif" lokasyon listesini çeker.
+   * Sadece id, city ve tüm dillerdeki title'ları alır.
+   */
+  app.get('/api/v1/admin/list-by-city', async (req, res) => {
+    try {
+      const { city } = req.query;
+
+      if (!city || city.trim() === '') {
+        return res.status(400).json({ error: "Şehir (city) parametresi gereklidir." });
+      }
+
+      const query = {
+        city: city
+      };
+      
+      // Hafif veri için projeksiyon (map.html'deki 'index' gibi)
+      const projection = {
+        _id: 0,
+        id: 1,
+        city: 1,
+        categoryKey: 1, // Kategori filtresi için bu da lazım
+        "translations.tr.title": 1,
+        "translations.en.title": 1,
+        "translations.de.title": 1,
+        "translations.fr.title": 1,
+      };
+
+      const locations = await db.collection('locations')
+        .find(query)
+        .project(projection)
+        .toArray();
+        
+      res.json(locations);
+
+    } catch (err) {
+      console.error("Şehre göre liste çekme hatası:", err);
+      res.status(500).json({ error: "Sunucu hatası" });
+    }
+  });
 
 /**
  * GET /api/v1/locations/:id

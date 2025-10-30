@@ -1,86 +1,71 @@
-# === Git Başlatma ve Temel Kaydetme ===
+==============================
+        GIT ÇALIŞMA REHBERİ
+==============================
 
-# 1. Proje Klasöründe Git'i Başlat (Sadece bir kez yapılır)
-# Bu komut, klasörde gizli bir .git deposu oluşturur.
+1️⃣ Başlatma
+-----------
 git init
+(Projeyi git ile takip etmeye başlar)
 
-# 2. Tüm Değişiklikleri "Sahneye" Ekle
-# Git'e bir sonraki kayıtta (commit) hangi dosyaları dahil edeceğini söyler.
-# '.' işareti, klasördeki tüm yeni/değiştirilmiş dosyaları ekler.
-git add .
+2️⃣ Durum & Geçmiş
+-----------------
+git status           (değişiklikleri gör)
+git log --oneline --graph   (kısa commit geçmişi)
 
-# Belirli bir dosyayı eklemek için:
-# git add server.js
-# git add map.html
+3️⃣ Değişiklik Kaydetme
+----------------------
+git add .            (tüm değişiklikleri ekle)
+git commit -m "mesaj" (anlık kayıt)
 
-# 3. Anlık Görüntüyü Kaydet (Commit)
-# Sahnedeki değişikliklerin kalıcı bir anlık görüntüsünü alır.
-# -m "Mesaj": Bu kayda açıklayıcı bir mesaj eklemek ZORUNLUDUR.
-git commit -m "Projenin ilk kararlı hali: Geo-Index mimarisi tamamlandı."
-# Başka bir örnek:
-# git commit -m "Yeni lokasyon ekleme özelliği eklendi (Faz 4)."
-
-
-# === Durumu Kontrol Etme ve Geçmişi Görme ===
-
-# Projedeki değişikliklerin durumunu gösterir
-# Hangi dosyaların değiştirildiği, hangilerinin sahnede olduğu vb.
-git status
-
-# Projenin tüm kayıt (commit) geçmişini gösterir
-# Her kaydın ID'sini, yazarını, tarihini ve mesajını listeler.
-git log
-
-# Geçmişi daha kısa ve okunabilir formatta gösterir
-git log --oneline --graph
-
-
-# === Geçmiş Sürümlere Göz Atma ve Geri Dönme ===
-
-# Geçmişteki belirli bir kayda (commit) GÖZ ATMAK için
-# Bu komut dosyalarınızı o kayıttaki hale getirir, ancak "geçmişte" olursunuz.
-# <commit_id>: 'git log' komutundan aldığınız ID (genellikle ilk 7 karakter yeterlidir).
-git checkout <commit_id>
-# Örnek: git checkout a1b2c3d
-
-# Tekrar en son sürüme (ana dala) dönmek için
-# Genellikle dalın adı 'main' veya 'master' olur.
-git checkout main
-# VEYA
-# git checkout master
-
-
-# === Dallanma (Branching - Yeni Özellikler Denemek İçin) ===
-
-# Yeni bir "dal" (branch) oluşturur
-# Ana kodunuzu etkilemeden yeni bir özellik üzerinde çalışmak için kullanılır.
-git branch yeni-ozellik-adi
-
-# Oluşturulan yeni dala geçiş yapar
-git checkout yeni-ozellik-adi
-
-# Yeni dalda çalışırken yaptığınız değişiklikleri kaydedersiniz:
-# git add .
-# git commit -m "Yeni özellikteki ilk adım tamamlandı."
-
-# İşiniz bittiğinde ana dala geri dönersiniz:
+4️⃣ Dallanma (Branch)
+--------------------
+Yeni dal oluştur ve geç:
+git checkout -b ozellik-adi
+Mevcut dallar:
+git branch
+Dal değiştir:
+git checkout dal-adi
+Ana dala dön:
 git checkout main
 
-# Yeni daldaki değişiklikleri ana dala birleştirirsiniz (merge):
-git merge yeni-ozellik-adi
+5️⃣ Dalı Ana Dala Birleştirme
+----------------------------
+git checkout main
+git merge ozellik-adi
+Dalı sil:
+git branch -d ozellik-adi
 
-# İhtiyaç kalmayan bir dalı silersiniz:
-git branch -d yeni-ozellik-adi
+6️⃣ Örnek Günlük Akış
+---------------------
+main
+├─> git checkout -b kaydet-butonu
+│   │
+│   ├─> Kod yaz, test et
+│   ├─> git add . 
+│   └─> git commit -m "Kaydet butonu eklendi"
+│
+└─> İş tamamlandıysa:
+    git checkout main
+    git merge kaydet-butonu
 
+└─> İş başarısız oldu veya başka dalda çözüldüyse:
+    git checkout main
+    git branch -D kaydet-butonu
 
-# === Uzak Depo (GitHub/GitLab - İsteğe Bağlı ama Önerilir) ===
+7️⃣ Eski Commit / Zaman Yolculuğu
+---------------------------------
+git checkout <commit_id>   (belirli commit’e git)
+git show <commit_id>       (o commit’te ne değişmiş gör)
 
-# GitHub/GitLab'da oluşturduğunuz boş depoyu projeye bağlar
-# <github_url>: GitHub'dan kopyaladığınız depo adresi.
-git remote add origin <github_url>
+8️⃣ Özet Tablosu
+----------------
+Amaç                     Komut
+--------------------------------
+Yeni özellik geliştirme   git checkout -b ozellik-adi
+Durumu kontrol et         git status
+Değişiklik kaydet         git add . + git commit -m "..."
+Ana dala dön              git checkout main
+Özelliği birleştir        git merge ozellik-adi
+Dal sil                   git branch -d ozellik-adi
 
-# Yereldeki kayıtlarınızı (commit) ilk kez uzak depoya gönderir
-git push -u origin main
-
-# Sonraki kayıtlarınızı göndermek için (commit attıktan sonra)
-git push
+==============================

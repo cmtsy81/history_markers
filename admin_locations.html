@@ -264,12 +264,12 @@
 
     .two-col {
       display: grid;
-      grid-template-columns: 2fr 1fr;
+      grid-template-columns: 300px 1fr;
       gap: 24px;
     }
 
     #editMap {
-      height: 300px;
+      height: 700px;
       border-radius: 6px;
       border: 1px solid #e0e0e0;
       margin-bottom: 16px;
@@ -372,6 +372,13 @@
         <select id="cityFilter">
           <option value="">Tüm Şehirler</option>
         </select>
+      </div>
+      
+      <div class="filter-group">
+      <label for="categoryFilter">Kategori</label>
+      <select id="categoryFilter">
+        <option value="">Tüm Kategoriler</option>
+      </select>
       </div>
     </div>
     <ul class="sidebar-list" id="locationList">
@@ -562,7 +569,11 @@
     let editMapInstance = null;
     let editMapMarker = null;
 
+    let cityCache = new Map(); // <-- YENİ ÖNBELLEK OBJESİ
+    let currentCityData = []; // <-- O AN GÖSTERİLEN ŞEHRİN VERİSİ
+
     const cityFilter = document.getElementById('cityFilter');
+    const categoryFilter = document.getElementById('categoryFilter');
     const locationList = document.getElementById('locationList');
     const locationForm = document.getElementById('locationForm');
     const locationTitle = document.getElementById('locationTitle');
@@ -603,6 +614,13 @@
           opt.value = cat.key;
           opt.textContent = cat.translations.tr;
           catSelect.appendChild(opt);
+
+          // --- YENİ EKLENEN KISIM (FİLTRE İÇİN) ---
+          const filterOpt = document.createElement('option');
+          filterOpt.value = cat.key;
+          filterOpt.textContent = cat.translations.tr;
+          categoryFilter.appendChild(filterOpt); // <-- Yeni filtreye de ekle
+          // --- BİTTİ ---
         });
 
         const tagRes = await fetch(API_TAGS);
@@ -646,29 +664,88 @@
       });
     }
 
-    async function loadLocations(city = '') {
-      locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Yükleniyor...</li>';
-      try {
-        let url = `${API_LOCATIONS}?lang=tr&sw_lat=-90&sw_lng=-180&ne_lat=90&ne_lng=180`;
-        if (city) url += `&city=${city}`;
-        const res = await fetch(url);
-        const locs = await res.json();
-        locationList.innerHTML = '';
-        if (locs.length === 0) {
-          locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Lokasyon bulunamadı</li>';
-          return;
-        }
-        locs.forEach(loc => {
-          const li = document.createElement('li');
-          li.textContent = loc.title || loc.id;
-          li.dataset.id = loc.id;
-          locationList.appendChild(li);
-        });
-      } catch (err) {
-        console.error("Lokasyonlar yüklenemedi:", err);
-        locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Hata oluştu</li>';
-      }
-    }
+    /**
+ * (GÜNCELLENDİ - "Şehir Bazlı Önbellek" Mimarisi)
+ * Ana veri yükleme fonksiyonu. Sadece 'cityFilter' değiştiğinde API'yi tetikler.
+ */
+async function loadLocations(selectedCity) {
+  locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Yükleniyor...</li>';
+
+  // Şehir seçilmediyse listeyi boşalt
+  if (!selectedCity) {
+    currentCityData = [];
+    renderLocationList([]); // Listeyi temizle
+    return;
+  }
+
+  // 1. Adım: Önbelleği (Cache) Kontrol Et
+  if (cityCache.has(selectedCity)) {
+    console.log(`"${selectedCity}" önbellekten yükleniyor...`);
+    currentCityData = cityCache.get(selectedCity);
+    applyFiltersAndRenderList(); // Direkt cache'den render et
+    return;
+  }
+
+  // 2. Adım: Önbellekte yoksa API'den Çek
+  console.log(`"${selectedCity}" API'den çekiliyor...`);
+  try {
+    // YENİ API'Yİ ÇAĞIR
+    let url = `${API_LOCATIONS.replace('locations', 'admin/list-by-city')}?city=${selectedCity}`;
+    const res = await fetch(url);
+    const locs = await res.json();
+
+    cityCache.set(selectedCity, locs); // 3. Adım: Önbelleğe Kaydet
+    currentCityData = locs;
+    applyFiltersAndRenderList(); // API'den gelen taze veriyi render et
+
+  } catch (err) {
+    console.error("Lokasyonlar yüklenemedi:", err);
+    locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Hata oluştu</li>';
+  }
+}
+
+
+    /**
+ * (YENİ)
+ * Verilen lokasyon dizisini sol menüye HTML olarak basar.
+ */
+function renderLocationList(locationsToRender) {
+  locationList.innerHTML = ''; // Listeyi temizle
+
+  if (locationsToRender.length === 0) {
+    locationList.innerHTML = '<li style="text-align: center; padding: 20px; color: #999;">Lokasyon bulunamadı</li>';
+    return;
+  }
+
+  locationsToRender.forEach(loc => {
+    const li = document.createElement('li');
+    // Admin panelinde her zaman TR başlığı gösterelim (veya 'en' fallback)
+    const title = loc.translations?.tr?.title || loc.translations?.en?.title || loc.id;
+    li.textContent = title;
+    li.dataset.id = loc.id;
+    locationList.appendChild(li);
+  });
+}
+
+/**
+ * (YENİ)
+ * Kategori filtresini o anki şehir verisine (currentCityData) uygular
+ * ve listeyi yeniden çizer. API isteği ATMAZ.
+ */
+function applyFiltersAndRenderList() {
+  const selectedCategory = categoryFilter.value;
+
+  if (!selectedCategory) {
+    renderLocationList(currentCityData); // Kategori filtresi yoksa tümünü göster
+    return;
+  }
+
+  // Kategoriye göre client-side filtrele
+  const filteredData = currentCityData.filter(loc => loc.categoryKey === selectedCategory);
+  renderLocationList(filteredData);
+}
+
+
 
     locationList.addEventListener('click', async (e) => {
       if (e.target.tagName !== 'LI') return;
@@ -776,10 +853,33 @@
       tab.addEventListener('click', () => switchTab(tab.dataset.lang));
     });
 
-    cityFilter.addEventListener('change', () => loadLocations(cityFilter.value));
+    // Her iki filtre değiştiğinde de çalışacak ortak fonksiyon
+      function handleFilterChange() {
+        const selectedCity = cityFilter.value;
+        const selectedCategory = categoryFilter.value;
+        loadLocations(selectedCity, selectedCategory);
+      }
+
+      // --- (GÜNCELLENDİ) --- Event Listeners
+
+// ANA TETİKLEYİCİ: Şehir filtresi API'yi çağırır
+cityFilter.addEventListener('change', () => {
+  // Formu gizle/placeholder'ı göster
+  locationForm.classList.remove('active');
+  placeholder.style.display = 'block';
+  locationTitle.textContent = "Lokasyon Seçin";
+
+  // Veriyi çek
+  loadLocations(cityFilter.value);
+});
+
+// İKİNCİL FİLTRE: Kategori filtresi SADECE cache'i filtreler, API'yi ÇAĞIRMAZ
+categoryFilter.addEventListener('change', () => {
+  applyFiltersAndRenderList();
+});
 
     loadCities();
-    loadLocations();
+    //loadLocations();
     loadMetaData();
   </script>
 </body>
