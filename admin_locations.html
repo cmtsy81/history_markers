@@ -349,6 +349,155 @@
       color: #999;
     }
 
+    /* 🆕 TOAST NOTIFICATION */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 16px 24px;
+      background: #2ecc71;
+      color: white;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      animation: slideIn 0.3s ease-out, slideOut 0.3s ease-out 2.7s;
+      z-index: 9999;
+    }
+
+    .toast.error {
+      background: #e74c3c;
+    }
+
+    .toast.info {
+      background: #3498db;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+    }
+
+    /* 🆕 SILME ONAY MODALI */
+    .delete-modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .delete-modal-overlay.active {
+      display: flex;
+    }
+
+    .delete-modal-content {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      padding: 32px;
+      max-width: 400px;
+      width: 90%;
+      animation: modalSlideIn 0.3s ease-out;
+      text-align: center;
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .delete-modal-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .delete-modal-content h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+
+    .delete-modal-content p {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .delete-modal-location {
+      font-weight: 600;
+      color: #e74c3c;
+      margin: 16px 0;
+      padding: 12px;
+      background: #fff5f5;
+      border-radius: 6px;
+    }
+
+    .delete-modal-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      justify-content: center;
+    }
+
+    .delete-modal-buttons button {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+
+    .delete-modal-btn-cancel {
+      background: #f0f0f0;
+      color: #2c3e50;
+    }
+
+    .delete-modal-btn-cancel:hover {
+      background: #e0e0e0;
+    }
+
+    .delete-modal-btn-confirm {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .delete-modal-btn-confirm:hover {
+      background: #c0392b;
+    }
+
     @media (max-width: 1024px) {
       .two-col {
         grid-template-columns: 1fr;
@@ -558,7 +707,34 @@
     </div>
   </main>
 
+  <!-- 🆕 SILME ONAY MODALI -->
+  <div id="deleteModalOverlay" class="delete-modal-overlay">
+    <div class="delete-modal-content">
+      <div class="delete-modal-icon">⚠️</div>
+      <h3>Lokasyonu Sil?</h3>
+      <p>Bu işlem geri alınamaz.</p>
+      <div class="delete-modal-location" id="deleteModalLocationName"></div>
+      <div class="delete-modal-buttons">
+        <button class="delete-modal-btn-cancel" id="deleteModalCancel">İptal</button>
+        <button class="delete-modal-btn-confirm" id="deleteModalConfirm">Evet, Sil</button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // 🆕 TOAST NOTIFICATION FONKSİYONU
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      // 3 saniye sonra otomatik sil
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+
     const API_LOCATIONS = "http://localhost:3000/api/v1/locations";
     const API_CITIES = "http://localhost:3000/api/v1/meta/cities";
     const API_CATEGORIES = "http://localhost:3000/api/v1/categories";
@@ -571,9 +747,8 @@
 
     let cityCache = new Map();
     let currentCityData = [];
-    let locationDetailsCache = new Map(); // 🆕 Detay cache'i
+    let locationDetailsCache = new Map();
 
-    // 🆕 STANDART LOKASYON (İzmir Konak - Saat Kulesi)
     const DEFAULT_LOCATION = {
       lat: 38.4237,
       lng: 27.1449,
@@ -581,7 +756,6 @@
       title: 'Yeni Lokasyon'
     };
 
-    // 🆕 SON SEÇİLİ LOKASYONUN KONUMU
     let lastSelectedLocation = null;
 
     const cityFilter = document.getElementById('cityFilter');
@@ -674,7 +848,6 @@
       });
     }
 
-    // 🆕 DETAY VERİSİNİ CACHE'LE ÇEKEN FONKSİYON
     async function getLocationDetails(id) {
       if (locationDetailsCache.has(id)) {
         console.log(`📦 "${id}" cache'den yükleniyor...`);
@@ -754,7 +927,6 @@
       renderLocationList(filteredData);
     }
 
-    // 🆕 YENI LOKASYON BUTONUNA TIKLAMA
     document.getElementById('newLocationBtn').addEventListener('click', async (e) => {
       e.preventDefault();
 
@@ -763,8 +935,6 @@
       
       document.getElementById('currentLocationId').value = '';
       locationTitle.textContent = '🆕 Yeni Lokasyon';
-      
-      // 🆕 DELETE BUTONU GIZLE (yeni lokasyon için)
       document.getElementById('deleteBtn').style.display = 'none';
       
       ['tr', 'en', 'de', 'fr'].forEach(lang => {
@@ -783,7 +953,6 @@
         chk.checked = false;
       });
 
-      // 🆕 KONUM LOJİĞİ
       let newLat, newLng, newCity;
 
       if (lastSelectedLocation) {
@@ -809,7 +978,6 @@
       document.querySelectorAll('.sidebar-list li.active').forEach(li => li.classList.remove('active'));
     });
 
-    // 🆕 MARKER SEÇİLDİĞİNDE SON KONUMU KAYDET
     locationList.addEventListener('click', async (e) => {
       if (e.target.tagName !== 'LI') return;
       const id = e.target.dataset.id;
@@ -821,7 +989,6 @@
       try {
         const loc = await getLocationDetails(id);
 
-        // 🆕 SON SEÇİLİ LOKASYONU KAYDET
         lastSelectedLocation = {
           lat: loc.lat,
           lng: loc.lng,
@@ -834,7 +1001,6 @@
         placeholder.style.display = 'none';
         locationForm.classList.add('active');
 
-        // 🆕 DELETE BUTONU GÖSTER (mevcut lokasyon için)
         document.getElementById('deleteBtn').style.display = 'block';
 
         ['tr', 'en', 'de', 'fr'].forEach(lang => {
@@ -868,7 +1034,6 @@
       }
     });
 
-    // 🆕 YENİ LOKASYON KAYDETME (POST/PUT)
     locationForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = currentLocationIdInput.value;
@@ -891,9 +1056,7 @@
       };
 
       try {
-        // 🆕 YENİ LOKASYON MI, GÜNCELLEME Mİ?
         if (!id) {
-          // POST - YENİ LOKASYON OLUŞTUR
           console.log('📝 Yeni lokasyon oluşturuluyor...');
           const res = await fetch(API_LOCATIONS, {
             method: 'POST',
@@ -903,13 +1066,15 @@
 
           if (res.ok) {
             const newLocation = await res.json();
-            alert('✓ Yeni lokasyon oluşturuldu!');
+            showToast('✓ Yeni lokasyon oluşturuldu!', 'success');
             
+            // Sunucudan dönen veriyi kullan
             locationDetailsCache.set(newLocation.id, newLocation);
             
             const selectedCity = cityFilter.value;
             if (selectedCity === newLocation.city) {
-              loadLocations(selectedCity);
+              currentCityData.push(newLocation);
+              renderLocationList(currentCityData);
             }
             
             locationForm.classList.remove('active');
@@ -917,10 +1082,9 @@
             locationTitle.textContent = 'Lokasyon Seçin';
             lastSelectedLocation = null;
           } else {
-            alert('✗ Oluşturma başarısız');
+            showToast('✗ Oluşturma başarısız', 'error');
           }
         } else {
-          // PUT - GÜNCELLE
           console.log('✏️ Lokasyon güncelleniyor...');
           updateData.id = id;
           
@@ -931,63 +1095,89 @@
           });
 
           if (res.ok) {
-            alert('✓ Lokasyon kaydedildi!');
-            locationDetailsCache.delete(id);
+            showToast('✓ Lokasyon kaydedildi!', 'success');
+            
+            // Sunucudan güncellenen veriyi al
+            const savedLocation = await fetch(`${API_LOCATIONS}/${id}`).then(r => r.json());
+            locationDetailsCache.set(id, savedLocation);
+            
+            const index = currentCityData.findIndex(loc => loc.id === id);
+            if (index !== -1) {
+              currentCityData[index] = savedLocation;
+              renderLocationList(currentCityData);
+            }
             
             const li = document.querySelector(`[data-id="${id}"]`);
-            if (li) li.textContent = updateData.translations.tr.title;
+            if (li) li.textContent = savedLocation.translations.tr.title || savedLocation.translations.en.title;
           } else {
-            alert('✗ Kaydetme başarısız');
+            showToast('✗ Kaydetme başarısız', 'error');
           }
         }
       } catch (err) {
         console.error("İşlem hatası:", err);
-        alert('✗ Hata: ' + err.message);
+        showToast('✗ Hata: ' + err.message, 'error');
       }
     });
 
-    // 🆕 DELETE BUTONU
     document.getElementById('deleteBtn').addEventListener('click', async () => {
       const id = currentLocationIdInput.value;
       if (!id) return;
 
-      // Popup confirmation
-      const confirmed = confirm(`⚠️ Bu lokasyonu silmek istediğine emin misin?\n\n"${locationTitle.textContent}"\n\nBu işlem geri alınamaz!`);
+      // Modal'ı aç
+      const modalOverlay = document.getElementById('deleteModalOverlay');
+      const locationNameEl = document.getElementById('deleteModalLocationName');
+      locationNameEl.textContent = locationTitle.textContent;
+      modalOverlay.classList.add('active');
+
+      // 🔧 Önceki listener'ları temizle
+      const confirmBtn = document.getElementById('deleteModalConfirm');
+      const cancelBtn = document.getElementById('deleteModalCancel');
       
-      if (!confirmed) {
-        console.log("Silme işlemi iptal edildi");
-        return;
-      }
+      // Clone ile eski listener'ları kaldır
+      const newConfirmBtn = confirmBtn.cloneNode(true);
+      const newCancelBtn = cancelBtn.cloneNode(true);
+      confirmBtn.replaceWith(newConfirmBtn);
+      cancelBtn.replaceWith(newCancelBtn);
 
-      try {
-        const res = await fetch(`${API_LOCATIONS}/${id}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' }
-        });
+      // Yeni listener'ları ekle
+      newConfirmBtn.addEventListener('click', async () => {
+        modalOverlay.classList.remove('active');
+        
+        try {
+          const res = await fetch(`${API_LOCATIONS}/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+          });
 
-        if (res.ok) {
-          alert('✓ Lokasyon silindi!');
-          locationDetailsCache.delete(id);
-          
-          // Listeyi yenile
-          const selectedCity = cityFilter.value;
-          if (selectedCity) {
-            loadLocations(selectedCity);
+          if (res.ok) {
+            showToast('✓ Lokasyon silindi!', 'success');
+            locationDetailsCache.delete(id);
+            
+            // Silineni listeden çıkar
+            const selectedCity = cityFilter.value;
+            if (selectedCity) {
+              currentCityData = currentCityData.filter(loc => loc.id !== id);
+              renderLocationList(currentCityData);
+            }
+            
+            locationForm.classList.remove('active');
+            placeholder.style.display = 'block';
+            locationTitle.textContent = 'Lokasyon Seçin';
+            lastSelectedLocation = null;
+          } else {
+            showToast('✗ Silme başarısız', 'error');
           }
-          
-          // Form temizle
-          locationForm.classList.remove('active');
-          placeholder.style.display = 'block';
-          locationTitle.textContent = 'Lokasyon Seçin';
-          lastSelectedLocation = null;
-        } else {
-          alert('✗ Silme başarısız');
+        } catch (err) {
+          console.error("Silme hatası:", err);
+          showToast('✗ Hata: ' + err.message, 'error');
         }
-      } catch (err) {
-        console.error("Silme hatası:", err);
-        alert('✗ Hata: ' + err.message);
-      }
+      });
+
+      newCancelBtn.addEventListener('click', () => {
+        modalOverlay.classList.remove('active');
+      });
     });
+
     function switchTab(lang) {
       tabs.forEach(t => t.classList.toggle('active', t.dataset.lang === lang));
       tabContents.forEach(c => c.classList.toggle('active', c.id === `content-${lang}`));
