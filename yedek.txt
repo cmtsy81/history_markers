@@ -8,3 +8,27 @@ function switchTab(lang) {
         }, 100);
       }
     }
+
+
+    app.get('/api/v1/locations/cluster-details', async (req, res) => {
+  try {
+    const { ids } = req.query;
+    
+    if (!ids || ids.trim() === '') {
+      return res.status(400).json({ error: "ids parametresi gereklidir." });
+    }
+    
+    // String'den array'e çevir: "id1,id2,id3" → ["id1", "id2", "id3"]
+    const idArray = ids.split(',').map(id => id.trim());
+    
+    const locations = await db.collection('locations')
+      .find({ id: { $in: idArray } })
+      .toArray();
+    
+    res.json(locations);
+    
+  } catch (err) {
+    console.error("Cluster detayları çekme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});

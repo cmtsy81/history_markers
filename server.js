@@ -278,6 +278,12 @@ app.get('/api/v1/locations/index', async (req, res) => {
       // Not: Bu, 'description' ve 'audioPath' gibi ağır verileri almaz.
       //"translations.title": 1 // Sadece 'title' objesini al (tüm diller)
     };
+
+    /**
+ * GET /api/v1/locations/cluster-details?ids=id1,id2,id3
+ * Cluster'a tıklandığında, o cluster'daki markerların detaylarını çeker
+ */
+
     
     // Sadece 'Yayında (True)' olanları haritada göster
     const locationsIndex = await db.collection('locations')
@@ -288,6 +294,30 @@ app.get('/api/v1/locations/index', async (req, res) => {
     res.json(locationsIndex);
   } catch (err) {
     console.error("Lokasyon index çekme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+
+app.get('/api/v1/locations/cluster-details', async (req, res) => {
+  try {
+    const { ids } = req.query;
+    
+    if (!ids || ids.trim() === '') {
+      return res.status(400).json({ error: "ids parametresi gereklidir." });
+    }
+    
+    // String'den array'e çevir: "id1,id2,id3" → ["id1", "id2", "id3"]
+    const idArray = ids.split(',').map(id => id.trim());
+    
+    const locations = await db.collection('locations')
+      .find({ id: { $in: idArray } })
+      .toArray();
+    
+    res.json(locations);
+    
+  } catch (err) {
+    console.error("Cluster detayları çekme hatası:", err);
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });
