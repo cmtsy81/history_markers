@@ -1,0 +1,151 @@
+travelAppDB.locations
+
+
+
+
+_id
+6900e96b8d6b5c77edee1fc6
+id
+"budapest_001"
+city
+"budapest"
+builtYear
+12650
+isPublished
+true
+lastUpdated
+2025-10-31T08:15:13.806+00:00
+lat
+47.495473
+lng
+19.039718
+
+location
+Object
+type
+"Point"
+
+coordinates
+Array (2)
+0
+19.039718
+1
+47.495473
+categoryKey
+"palace"
+
+tagKeys
+Array (4)
+0
+"unesco 2"
+1
+"historical"
+2
+"iconic"
+3
+"viewpoint"
+thumbnailUrl
+"budapest_001.jpg"
+
+imageUrls
+Array (1)
+0
+"budapest_001.jpg"
+address
+null
+openingHours
+null
+websiteUrl
+null
+ticketUrl
+null
+ourScore
+null
+packageId
+null
+
+translations
+Object
+
+tr
+Object
+title
+"Budin Kalesi (Budavár)"
+description
+"Budin Kalesi (Macarca: Budavári Palota), Budapeşte'deki Macar kralları…"
+audioPath
+"budapest_001_tr.mp3"
+
+en
+Object
+title
+"Buda Castle (Budavár)"
+description
+"Buda Castle (Hungarian: Budavári Palota) is the historical castle and …"
+audioPath
+"budapest_001_en.mp3"
+
+de
+Object
+title
+"Budaer Burg (Budavári Palota)"
+description
+"Die Budaer Burg (ungarisch: Budavári Palota) ist der historische Burg-…"
+audioPath
+"budapest_001_de.mp3"
+
+fr
+Object
+title
+"Château de Buda (Budavári Palota)"
+description
+"Le château de Buda (hongrois : Budavári Palota) est le complexe histor…"
+audioPath
+"budapest_001_fr.mp3"
+
+
+
+travelAppDB.categories
+
+
+
+_id
+6900e96b8d6b5c77edee2016
+key
+"palace"
+icon
+"icon-palace"
+
+translations
+Object
+tr
+"Saray"
+en
+"Palace"
+de
+"Schloss"
+fr
+"Palais"
+
+
+travelAppDB.tags
+
+
+
+_id
+6900e96b8d6b5c77edee201d
+key
+"unesco 2"
+
+translations
+Object
+tr
+"UNESCO Mirası"
+en
+"UNESCO Heritage"
+de
+"UNESCO-Erbe"
+fr
+"Patrimoine UNESCO"
+
+

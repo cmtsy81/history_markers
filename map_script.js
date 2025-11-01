@@ -8,7 +8,7 @@ const API_BASE = "http://localhost:3000/api/v1";
 const INDEX_CACHE_TIME = 5 * 60 * 1000; // 5 dakika (development)
 const DETAIL_CACHE_TIME = 24 * 60 * 60 * 1000; // 24 saat
 const MIN_ZOOM_TO_SHOW_LIST = 13;
-const CLUSTER_THRESHOLD = 50; // Cluster'da bu sayıdan az marker varsa detayları indir
+const CLUSTER_THRESHOLD = 20; // Cluster'da bu sayıdan az marker varsa detayları indir
 
 // --- CUSTOM MARKER İKONLARI ---
 const customIcon = L.icon({
@@ -139,7 +139,10 @@ function initMap() {
   // Cluster click event
   markerClusterGroup.on('clusterclick', handleClusterClick);
   
-  map.on('moveend', updateLocationList);
+  map.on('moveend', async () => {
+  await updateMapMarkers();
+  updateLocationList();
+});
 }
 
 /**
@@ -151,11 +154,6 @@ function handleClusterClick(e) {
   
   console.log(`Cluster tıklandı. İçinde ${childCount} marker var.`);
 
-    cluster.zoomToShowLayer(cluster, function () {
-        // Zoom işlemi bittikten sonra yapılacaklar (isteğe bağlı)
-        console.log("Optimal zoom tamamlandı.");
-    });
-  
   if (childCount <= CLUSTER_THRESHOLD) {
     // Cluster'daki marker ID'lerini topla
     const markerIds = [];
@@ -168,8 +166,12 @@ function handleClusterClick(e) {
     loadClusterDetails(markerIds);
   } else {
     showNotification(`Daha fazla yakınlaşın (${childCount} marker)`, 'info');
-    map.zoomIn();
   }
+
+  // Zoom işlemi yap (markerClusterGroup kullanarak)
+  markerClusterGroup.zoomToShowLayer(cluster, function () {
+    console.log("Optimal zoom tamamlandı.");
+  });
 }
 
 /**
@@ -291,21 +293,37 @@ function showClusterDetails(locations) {
   }).join('');
 }
 
+
+
+
 /**
- * Index verisini (hafif veri) çek veya cache'den al
+ * Tüm geoIndexData için cache durumunu kontrol et (bir kere)
  */
+async function checkCacheForAllLocations() {
+  for (let loc of geoIndexData) {
+    try {
+      const cached = await getFromIndexedDB('markerDetails', loc.id);
+      loc.isCached = cached && cached.timestamp && isCacheValid(cached.timestamp, DETAIL_CACHE_TIME);
+    } catch (err) {
+      loc.isCached = false;
+    }
+  }
+  console.log('✅ Tüm lokasyonların cache durumu kontrol edildi');
+}
+
 async function loadGeoIndex() {
   const now = Date.now();
   
   // Memory cache ve 5 dakika kontrolü
   if (geoIndexData.length > 0 && (now - lastIndexFetch) < INDEX_CACHE_TIME) {
     console.log('✅ Geo-Index memory cache kullanılıyor.');
-    updateMapMarkers();
+    await checkCacheForAllLocations();  // ← BURASI YENİ
+    await updateMapMarkers();
     updateLocationList();
     return;
   }
 
-  console.log("🔄 Yeni Geo-Index çekiliyor...");
+  console.log("📥 Yeni Geo-Index çekiliyor...");
   
   try {
     const response = await fetch(`${API_BASE}/locations/index`);
@@ -320,7 +338,8 @@ async function loadGeoIndex() {
     });
     
     console.log(`✅ ${geoIndexData.length} marker çekildi`);
-    updateMapMarkers();
+    await checkCacheForAllLocations();  // ← BURASI YENİ
+    await updateMapMarkers();
     updateLocationList();
   } catch (err) {
     console.error('Geo-Index çekilemedi:', err);
@@ -331,7 +350,8 @@ async function loadGeoIndex() {
       if (cached) {
         geoIndexData = cached.data;
         showNotification('⚠️ Eski veriler gösteriliyor (çevrimdışı)', 'warning');
-        updateMapMarkers();
+        await checkCacheForAllLocations();  // ← BURASI YENİ
+        await updateMapMarkers();
         updateLocationList();
         return;
       }
@@ -342,6 +362,10 @@ async function loadGeoIndex() {
     document.getElementById('locationList').innerHTML = '<div class="empty-state">Hata: Konum verileri yüklenemedi</div>';
   }
 }
+
+
+
+
 
 async function loadCategories() {
   try {
@@ -381,9 +405,29 @@ async function loadCities() {
   }
 }
 
+
+// --- THROTTLE FONKSIYONU (Harita kaydırma performansı) ---
+function throttle(func, delay) {
+  let lastCall = 0;
+  return function(...args) {
+    const now = Date.now();
+    if (now - lastCall >= delay) {
+      lastCall = now;
+      return func(...args);
+    }
+  };
+}
+
+
+
+
 // --- HARITA VE LİSTE GÜNCELLEME ---
 
-function updateMapMarkers() {
+
+/**
+ * Marker'ları güncelle (cache durumu zaten geoIndexData'da var)
+ */
+async function updateMapMarkers() {
   markerClusterGroup.clearLayers(); 
   Object.keys(markerMap).forEach(key => delete markerMap[key]);
 
@@ -402,23 +446,33 @@ function updateMapMarkers() {
     return matchesSearch && matchesCategory && matchesCity;
   });
 
-  displayLocations.forEach(loc => {
+  for (let loc of displayLocations) {
     const lat = loc.lat, lng = loc.lng;
-    if (!lat || !lng) return;
+    if (!lat || !lng) continue;
     
     const isSelected = loc.id === selectedLocationId;
+    
+    // Cache durumuna göre opacity belirle (zaten kontrol edilmiş)
+    let markerOpacity = loc.isCached ? 1.0 : 0.5;
+    
     const marker = L.marker([lat, lng], {
       icon: isSelected ? customIconSelected : customIcon,
-      locationId: loc.id, // Cluster detayları için ID saklayalım
-      opacity: 0.5
+      locationId: loc.id,
+      opacity: markerOpacity
     });
       
     marker.on('click', () => handleMarkerClick(loc.id)); 
     markerMap[loc.id] = marker;
     markerClusterGroup.addLayer(marker);
-  });
+  }
 }
 
+
+
+
+/**
+ * Liste güncelle
+ */
 async function updateLocationList() {
   const listEl = document.getElementById('locationList');
   const search = document.getElementById('searchInput').value.toLowerCase();
@@ -464,16 +518,6 @@ async function updateLocationList() {
     return;
   }
 
-  // Sadece ekrana sığan marker'lar için cache durumunu kontrol et
-  for (let loc of filtered) {
-    try {
-      const cached = await getFromIndexedDB('markerDetails', loc.id);
-      loc.isCached = cached && cached.timestamp && isCacheValid(cached.timestamp, DETAIL_CACHE_TIME);
-    } catch (err) {
-      loc.isCached = false;
-    }
-  }
-
   listEl.innerHTML = filtered.map(loc => {
     const categoryName = allCategories[loc.categoryKey] || loc.categoryKey || '-';
     const title = (loc.translations && loc.translations[currentLang] && loc.translations[currentLang].title) 
@@ -497,6 +541,12 @@ async function updateLocationList() {
     listEl.innerHTML += '<div class="empty-state">(Liste, performans için ilk 100 sonuçla sınırlandırıldı...)</div>';
   }
 }
+
+
+
+
+
+
 
 // --- DETAY VE ETKİLEŞİM ---
 
@@ -695,6 +745,9 @@ function closeDetails() {
 
 // --- OLAY DİNLEYİCİLERİ ---
 
+const throttledUpdateMarkers = throttle(updateMapMarkers, 1000); // 1 saniye bekleme
+const throttledUpdateList = throttle(updateLocationList, 1000);
+
 document.querySelectorAll('.lang-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
@@ -702,8 +755,8 @@ document.querySelectorAll('.lang-btn').forEach(btn => {
     currentLang = btn.dataset.lang;
     
     loadCategories();
-    updateMapMarkers();
-    updateLocationList();
+    throttledUpdateMarkers();
+    throttledUpdateList();
     
     if (currentHeavyLocation) {
       showDetails(currentHeavyLocation);
@@ -712,17 +765,22 @@ document.querySelectorAll('.lang-btn').forEach(btn => {
 });
 
 document.getElementById('searchInput').addEventListener('input', () => {
-  updateMapMarkers();
-  updateLocationList();
+  throttledUpdateMarkers();
+  throttledUpdateList();
 });
+
 document.getElementById('cityFilter').addEventListener('change', () => {
-  updateMapMarkers();
-  updateLocationList();
+  throttledUpdateMarkers();
+  throttledUpdateList();
 });
+
 document.getElementById('categoryFilter').addEventListener('change', () => {
-  updateMapMarkers();
-  updateLocationList();
+  throttledUpdateMarkers();
+  throttledUpdateList();
 });
+
+//map.on('moveend', updateLocationList);
+
 
 // --- CACHE TEMİZLEME (TEST İÇİN) ---
 
