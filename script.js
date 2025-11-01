@@ -1,8 +1,17 @@
 // ===== API ENDPOINTS =====
-const API_LOCATIONS = "http://localhost:3000/api/v1/locations";
-const API_CITIES = "http://localhost:3000/api/v1/meta/cities";
-const API_CATEGORIES = "http://localhost:3000/api/v1/categories";
-const API_TAGS = "http://localhost:3000/api/v1/tags";
+// const API_LOCATIONS = "http://localhost:3000/api/v1/locations";
+// const API_CITIES = "http://localhost:3000/api/v1/meta/cities";
+// const API_CATEGORIES = "http://localhost:3000/api/v1/categories";
+// const API_TAGS = "http://localhost:3000/api/v1/tags";
+
+
+
+const API_LOCATIONS = "https://history-markers.onrender.com/api/v1/locations";
+const API_CITIES = "https://history-markers.onrender.com/api/v1/meta/cities";
+const API_CATEGORIES = "https://history-markers.onrender.com/api/v1/categories";
+const API_TAGS = "https://history-markers.onrender.com/api/v1/tags";
+
+
 
 // ===== GLOBAL VARIABLES =====
 let allCategories = [];
