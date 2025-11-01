@@ -32,3 +32,4 @@ function switchTab(lang) {
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });
+.
