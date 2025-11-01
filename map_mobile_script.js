@@ -420,26 +420,27 @@ window.handleMarkerClick = async function(id) {
   if (!locationDetails) return;
 
   currentHeavyLocation = locationDetails;
+  
+  // Marker'ı PARLAK YAP (detay çekildiğinden cache'ye yazılmıştır)
+  if (markerMap[id]) {
+    markerMap[id].setOpacity(1.0);
+  }
+  
+  // Index item'ını da güncelle
+  const indexItem = geoIndexData.find(loc => loc.id === id);
+  if (indexItem) {
+    indexItem.isCached = true;
+  }
 
   focusMapOnLocation(locationDetails);
-
   showDetails(locationDetails);
   detailsPanel.classList.add('active');
   detailsPanel.style.display = 'none';
 
-  // Marker opacity'sini güncelle (cache varsa parlak yap)
-  if (markerMap[id]) {
-    const indexItem = geoIndexData.find(loc => loc.id === id);
-    if (indexItem && indexItem.isCached) {
-      markerMap[id].setOpacity(1.0);  // Cache varsa parlak
-    } else {
-      markerMap[id].setOpacity(0.5);  // Cache yoksa mat
-    }
-  }
-
-
   openMobilePanel(id);
 };
+
+
 
 window.addEventListener('resize', () => {
   const wasOnMobile = mobilePanel?.style.display === 'flex';
