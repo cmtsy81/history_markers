@@ -427,6 +427,17 @@ window.handleMarkerClick = async function(id) {
   detailsPanel.classList.add('active');
   detailsPanel.style.display = 'none';
 
+  // Marker opacity'sini güncelle (cache varsa parlak yap)
+  if (markerMap[id]) {
+    const indexItem = geoIndexData.find(loc => loc.id === id);
+    if (indexItem && indexItem.isCached) {
+      markerMap[id].setOpacity(1.0);  // Cache varsa parlak
+    } else {
+      markerMap[id].setOpacity(0.5);  // Cache yoksa mat
+    }
+  }
+
+
   openMobilePanel(id);
 };
 
