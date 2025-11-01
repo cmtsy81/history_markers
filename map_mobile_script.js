@@ -89,13 +89,16 @@ function createFloatingControls() {
 
   locationBtn.addEventListener('click', () => {
     if (isTracking) {
+      // Tracking aktifse durdur
       stopLocationTracking();
       if (userLocationMarker) map.removeLayer(userLocationMarker);
       userLocationMarker = null;
-      locationBtn.style.opacity = '1';
+      locationBtn.style.opacity = '1';  // Opacity normal yap
       locationBtn.textContent = '📍';
       isTracking = false;
     } else {
+      // Tracking kapalıysa başlat
+      locationBtn.style.opacity = '0.6';  // Tracking sırasında mat yap
       requestUserLocation();
       isTracking = true;
     }
