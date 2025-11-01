@@ -4,7 +4,11 @@
  */
 
 // --- SABİTLER ---
-const API_BASE = "http://localhost:3000/api/v1";
+//const API_BASE = "http://localhost:3000/api/v1";
+
+const API_BASE = "https://history-markers.onrender.com/api/v1";
+
+
 const INDEX_CACHE_TIME = 5 * 60 * 1000; // 5 dakika (development)
 const DETAIL_CACHE_TIME = 24 * 60 * 60 * 1000; // 24 saat
 const MIN_ZOOM_TO_SHOW_LIST = 13;

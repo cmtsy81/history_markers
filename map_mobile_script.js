@@ -83,6 +83,24 @@ function createFloatingControls() {
     align-items: center;
     justify-content: center;
   `;
+
+
+  let isTracking = false;
+
+  locationBtn.addEventListener('click', () => {
+    if (isTracking) {
+      stopLocationTracking();
+      if (userLocationMarker) map.removeLayer(userLocationMarker);
+      userLocationMarker = null;
+      locationBtn.style.opacity = '1';
+      locationBtn.textContent = '📍';
+      isTracking = false;
+    } else {
+      requestUserLocation();
+      isTracking = true;
+    }
+  });
+  
   locationBtn.addEventListener('mouseover', () => {
     locationBtn.style.transform = 'scale(1.1)';
     locationBtn.style.boxShadow = '0 4px 12px rgba(0,153,255,0.4)';
@@ -96,6 +114,8 @@ function createFloatingControls() {
   container.appendChild(langContainer);
   container.appendChild(locationBtn);
   document.body.appendChild(container);
+
+  
 }
 
 // Dil değiştir (mobile)
