@@ -109,7 +109,7 @@ function createFloatingControls() {
     locationBtn.style.transform = 'scale(1)';
     locationBtn.style.boxShadow = '0 2px 8px rgba(0,153,255,0.3)';
   });
-  locationBtn.addEventListener('click', requestUserLocation);
+  
 
   container.appendChild(langContainer);
   container.appendChild(locationBtn);
