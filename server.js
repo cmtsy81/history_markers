@@ -270,6 +270,7 @@ app.get('/api/v1/locations/index', async (req, res) => {
       lng: 1,
       city: 1,
       categoryKey: 1,
+      lastUpdated: 1, // <-- cache KALICI ÇÖZÜM İÇİN EKLENMESİ GEREKEN ALAN
       // DİREKT İHTİYACIMIZ OLAN ALT ALANLARI İSTİYORUZ.
       "translations.tr.title": 1,
       "translations.en.title": 1,
