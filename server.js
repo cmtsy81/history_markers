@@ -17,8 +17,16 @@ const PORT = process.env.PORT || 3000; // API sunucumuz 3000 portundan çalışa
 
 const app = express();
 
+
+app.use(cors({
+  origin: [
+    'https://mapmarkers.onrender.com',
+    'http://localhost:5173'
+  ]
+}));
+
 // --- 2. ARA YAZILIMLAR (Middleware) ---
-app.use(cors());
+//app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'assets/public'))); // Public klasörü sun
 app.use(express.static(path.join(__dirname, '/'))); // Ana dizindeki tüm dosyaları sun
