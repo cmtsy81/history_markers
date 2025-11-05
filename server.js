@@ -1,3 +1,5 @@
+// DOSYA: server.js (DÜZELTİLMİŞ VE "EV ÖDEVİ" EKLENMİŞ HALİ)
+
 const express = require('express');
 // ... (require('express') vs. hemen sonrası)
 const path = require('path'); // Node.js'in dosya yolları için standart modülü
@@ -24,34 +26,34 @@ app.use(express.static(path.join(__dirname, '/'))); // Ana dizindeki tüm dosyal
 let db; // MongoDB veritabanı bağlantısını burada tutacağız
 
 // --- 3. TEMEL API ENDPOINT'İ (ESKİ BBOX) ---
-// Not: Bu API'yi yeni mimaride kullanmayacağız, ancak silmiyoruz.
+// ... (Bu /api/v1/locations kodunda değişiklik yok) ...
 app.get('/api/v1/locations', async (req, res) => {
-  try {
-    // ... (Mevcut BBox API kodunuz - değişiklik yok) ...
-    const { sw_lat, sw_lng, ne_lat, ne_lng, lang = 'en' } = req.query;
-    if (!sw_lat || !sw_lng || !ne_lat || !ne_lng) {
-      return res.status(400).json({ 
-        error: "Eksik koordinat parametreleri. 'sw_lat', 'sw_lng', 'ne_lat', 'ne_lng' gereklidir." 
-      });
-    }
-    const swLat = parseFloat(sw_lat);
-    const swLng = parseFloat(sw_lng);
-    const neLat = parseFloat(ne_lat);
-    const neLng = parseFloat(ne_lng);
-    const query = {
-      location: {
-        $geoWithin: {
-          $box: [
-            [swLng, swLat], 
-            [neLng, neLat]
-          ]
-        }
-      }
-    };
-    const { city } = req.query;
-    if (city && city.trim() !== '') {
-      query.city = city;
-    }
+  try {
+    // ... (Mevcut BBox API kodunuz - değişiklik yok) ...
+    const { sw_lat, sw_lng, ne_lat, ne_lng, lang = 'en' } = req.query;
+    if (!sw_lat || !sw_lng || !ne_lat || !ne_lng) {
+      return res.status(400).json({ 
+        error: "Eksik koordinat parametreleri. 'sw_lat', 'sw_lng', 'ne_lat', 'ne_lng' gereklidir." 
+      });
+    }
+    const swLat = parseFloat(sw_lat);
+    const swLng = parseFloat(sw_lng);
+    const neLat = parseFloat(ne_lat);
+    const neLng = parseFloat(ne_lng);
+    const query = {
+      location: {
+        $geoWithin: {
+          $box: [
+            [swLng, swLat], 
+            [neLng, neLat]
+          ]
+        }
+      }
+    };
+    const { city } = req.query;
+    if (city && city.trim() !== '') {
+      query.city = city;
+    }
 
 // --- YENİ EKLENEN KATEGORİ FİLTRESİ KODU ---
 const { categoryKey } = req.query;
@@ -59,208 +61,203 @@ if (categoryKey && categoryKey.trim() !== '') {
   query.categoryKey = categoryKey;
 }
 // --- BİTTİ ---
-    const pipeline = [
-      { $match: query },
-      {
-        $project: {
-          id: 1,
-          location: 1,
-          categoryKey: 1,
-          tagKeys: 1,
-          thumbnailUrl: 1,
-          imageUrls: 1,
-          city: 1,
-          builtYear: 1,
-          lat: 1,
-          lng: 1,
-          isPublished: 1,
-          title: `$translations.${lang}.title`,
-          description: `$translations.${lang}.description`,
-          audioPath: `$translations.${lang}.audioPath`
-        }
-      }
-    ];
-    const locations = await db.collection('locations').aggregate(pipeline).toArray();
-    res.json(locations);
-  } catch (err) {
-    console.error("API Hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası oluştu." });
-  }
+    const pipeline = [
+      { $match: query },
+      {
+        $project: {
+          id: 1,
+          location: 1,
+          categoryKey: 1,
+          tagKeys: 1,
+          thumbnailUrl: 1,
+          imageUrls: 1,
+          city: 1,
+          builtYear: 1,
+          lat: 1,
+          lng: 1,
+          isPublished: 1,
+          title: `$translations.${lang}.title`,
+          description: `$translations.${lang}.description`,
+          audioPath: `$translations.${lang}.audioPath`
+        }
+      }
+    ];
+    const locations = await db.collection('locations').aggregate(pipeline).toArray();
+    res.json(locations);
+  } catch (err) {
+    console.error("API Hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası oluştu." });
+  }
 });
 
 // --- 3B. KATEGORİ API ENDPOINT'LERİ (FAZ 1) ---
 // ... (Kategoriler için olan GET, POST, PUT, DELETE kodlarınızın tamamı - değişiklik yok) ...
 app.get('/api/v1/categories', async (req, res) => {
-  try {
-    const categories = await db.collection('categories').find({}).toArray();
-    res.json(categories);
-  } catch (err) {
-    console.error("Kategori listeleme hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
+  try {
+    const categories = await db.collection('categories').find({}).toArray();
+    res.json(categories);
+  } catch (err) {
+    console.error("Kategori listeleme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 app.post('/api/v1/categories', async (req, res) => {
-  try {
-    const newCategory = req.body;
-    if (!newCategory.key || !newCategory.translations || 
-        !newCategory.translations.tr || !newCategory.translations.en ||
-        !newCategory.translations.de || !newCategory.translations.fr) {
-      return res.status(400).json({ 
-        error: "Eksik bilgi: 'key' ve 'translations.tr', 'en', 'de', 'fr' alanları zorunludur." 
-      });
-    }
-    const result = await db.collection('categories').insertOne(newCategory);
-    const createdDocument = {
-      _id: result.insertedId,
-      ...newCategory
-    };
-    res.status(201).json(createdDocument);
-  } catch (err) {
-    console.error("Kategori ekleme hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
+  try {
+    const newCategory = req.body;
+    if (!newCategory.key || !newCategory.translations || 
+        !newCategory.translations.tr || !newCategory.translations.en ||
+        !newCategory.translations.de || !newCategory.translations.fr) {
+      return res.status(400).json({ 
+        error: "Eksik bilgi: 'key' ve 'translations.tr', 'en', 'de', 'fr' alanları zorunludur." 
+      });
+    }
+    const result = await db.collection('categories').insertOne(newCategory);
+    const createdDocument = {
+      _id: result.insertedId,
+      ...newCategory
+    };
+    res.status(201).json(createdDocument);
+  } catch (err) {
+    console.error("Kategori ekleme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 app.put('/api/v1/categories/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
-    let objectId;
-    try {
-      objectId = new ObjectId(id);
-    } catch (err) {
-      return res.status(400).json({ error: "Geçersiz ID formatı." });
-    }
-    if (!updateData.key || !updateData.translations ||
-        !updateData.translations.tr || !updateData.translations.en ||
-        !updateData.translations.de || !updateData.translations.fr) {
-      return res.status(400).json({ 
-        error: "Eksik bilgi: 'key' ve 'translations.tr', 'en', 'de', 'fr' alanları zorunludur." 
-      });
-    }
-    const result = await db.collection('categories').updateOne(
-      { _id: objectId },
-      { $set: { key: updateData.key, translations: updateData.translations } }
-    );
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: "Kategori bulunamadı." });
-    }
-    res.json({ message: "Kategori başarıyla güncellendi.", updatedId: id });
-  } catch (err) {
-    console.error("Kategori güncelleme hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    let objectId;
+    try {
+      objectId = new ObjectId(id);
+    } catch (err) {
+      return res.status(400).json({ error: "Geçersiz ID formatı." });
+    }
+    if (!updateData.key || !updateData.translations ||
+        !updateData.translations.tr || !updateData.translations.en ||
+        !updateData.translations.de || !updateData.translations.fr) {
+      return res.status(400).json({ 
+        error: "Eksik bilgi: 'key' ve 'translations.tr', 'en', 'de', 'fr' alanları zorunludur." 
+      });
+    }
+    const result = await db.collection('categories').updateOne(
+      { _id: objectId },
+      { $set: { key: updateData.key, translations: updateData.translations } }
+    );
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: "Kategori bulunamadı." });
+    }
+    res.json({ message: "Kategori başarıyla güncellendi.", updatedId: id });
+  } catch (err) {
+    console.error("Kategori güncelleme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 app.delete('/api/v1/categories/:id', async (req, res) => {
-  try {
-    const { id } = req.params; 
-    let objectId;
-    try {
-      objectId = new ObjectId(id);
-    } catch (err) {
-      return res.status(400).json({ error: "Geçersiz ID formatı." });
-    }
-    const result = await db.collection('categories').deleteOne({ _id: objectId });
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ error: "Kategori bulunamadı." });
-    }
-    res.status(204).send(); 
-  } catch (err) {
-    console.error("Kategori silme hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
+  try {
+    const { id } = req.params; 
+    let objectId;
+    try {
+      objectId = new ObjectId(id);
+    } catch (err) {
+      return res.status(400).json({ error: "Geçersiz ID formatı." });
+    }
+    const result = await db.collection('categories').deleteOne({ _id: objectId });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: "Kategori bulunamadı." });
+    }
+    res.status(204).send(); 
+  } catch (err) {
+    console.error("Kategori silme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 
 
 // --- 3C. ETİKET API ENDPOINT'LERİ (FAZ 2) ---
 // ... (Etiketler için olan GET, POST, PUT, DELETE kodlarınızın tamamı - değişiklik yok) ...
 app.get('/api/v1/tags', async (req, res) => {
-  try {
-    const tags = await db.collection('tags').find({}).toArray();
-    res.json(tags);
-  } catch (err) {
-    console.error("Etiket listeleme hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
+  try {
+    const tags = await db.collection('tags').find({}).toArray();
+    res.json(tags);
+  } catch (err) {
+    console.error("Etiket listeleme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 app.post('/api/v1/tags', async (req, res) => {
-  try {
-    const newTag = req.body;
-    if (!newTag.key || !newTag.translations || 
-        !newTag.translations.tr || !newTag.translations.en ||
-        !newTag.translations.de || !newTag.translations.fr) {
-      return res.status(400).json({ 
-        error: "Eksik bilgi: 'key' ve 'translations.tr', 'en', 'de', 'fr' alanları zorunludur." 
-      });
-    }
-    const result = await db.collection('tags').insertOne(newTag);
-    const createdDocument = {
-      _id: result.insertedId,
-      ...newTag
-    };
-    res.status(201).json(createdDocument);
-  } catch (err) {
-    console.error("Etiket ekleme hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
+  try {
+    const newTag = req.body;
+    if (!newTag.key || !newTag.translations || 
+        !newTag.translations.tr || !newTag.translations.en ||
+        !newTag.translations.de || !newTag.translations.fr) {
+      return res.status(400).json({ 
+        error: "Eksik bilgi: 'key' ve 'translations.tr', 'en', 'de', 'fr' alanları zorunludur." 
+      });
+    }
+    const result = await db.collection('tags').insertOne(newTag);
+    const createdDocument = {
+      _id: result.insertedId,
+      ...newTag
+    };
+    res.status(201).json(createdDocument);
+  } catch (err) {
+    console.error("Etiket ekleme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 app.put('/api/v1/tags/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
-    let objectId;
-    try {
-      objectId = new ObjectId(id);
-    } catch (err) {
-      return res.status(400).json({ error: "Geçersiz ID formatı." });
-    }
-    if (!updateData.key || !updateData.translations ||
-        !updateData.translations.tr || !updateData.translations.en ||
-        !updateData.translations.de || !updateData.translations.fr) {
-      return res.status(400).json({ 
-        error: "Eksik bilgi: 'key' ve 'translations.tr', 'en', 'de', 'fr' alanları zorunludur." 
-      });
-    }
-    const result = await db.collection('tags').updateOne(
-      { _id: objectId },
-      { $set: { key: updateData.key, translations: updateData.translations } }
-    );
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: "Etiket bulunamadı." });
-    }
-    res.json({ message: "Etiket başarıyla güncellendi.", updatedId: id });
-  } catch (err) {
-    console.error("Etiket güncelleme hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    let objectId;
+    try {
+      objectId = new ObjectId(id);
+    } catch (err) {
+      return res.status(400).json({ error: "Geçersiz ID formatı." });
+    }
+    if (!updateData.key || !updateData.translations ||
+        !updateData.translations.tr || !updateData.translations.en ||
+        !updateData.translations.de || !updateData.translations.fr) {
+      return res.status(400).json({ 
+        error: "Eksik bilgi: 'key' ve 'translations.tr', 'en', 'de', 'fr' alanları zorunludur." 
+      });
+    }
+    const result = await db.collection('tags').updateOne(
+      { _id: objectId },
+      { $set: { key: updateData.key, translations: updateData.translations } }
+    );
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: "Etiket bulunamadı." });
+    }
+    res.json({ message: "Etiket başarıyla güncellendi.", updatedId: id });
+  } catch (err) {
+    console.error("Etiket güncelleme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 app.delete('/api/v1/tags/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    let objectId;
-    try {
-      objectId = new ObjectId(id);
-    } catch (err) {
-      return res.status(400).json({ error: "Geçersiz ID formatı." });
-    }
-    const result = await db.collection('tags').deleteOne({ _id: objectId });
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ error: "Etiket bulunamadı." });
-    }
-    res.status(204).send(); 
-  } catch (err) {
-    console.error("Etiket silme hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
+  try {
+    const { id } = req.params;
+    let objectId;
+    try {
+      objectId = new ObjectId(id);
+    } catch (err) {
+      return res.status(400).json({ error: "Geçersiz ID formatı." });
+    }
+    const result = await db.collection('tags').deleteOne({ _id: objectId });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: "Etiket bulunamadı." });
+    }
+    res.status(204).send(); 
+  } catch (err) {
+    console.error("Etiket silme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 
 
 // --- (YENİ) HARİTA "GEO-INDEX" API'LERİ (YENİ MİMARİ) ---
-
-/**
- * GET /api/v1/locations/index
- * Haritanın ilk yüklemesi için TÜM lokasyonların HAFİF (lightweight)
- * verisini (sadece 'id', 'lat', 'lng', 'city', 'categoryKey' ve 'title' objesi) döndürür.
- */
+// ... (Bu /index, /cluster-details, /details/:id kodlarında değişiklik yok) ...
 app.get('/api/v1/locations/index', async (req, res) => {
   try {
     const projection = {
@@ -270,21 +267,12 @@ app.get('/api/v1/locations/index', async (req, res) => {
       lng: 1,
       city: 1,
       categoryKey: 1,
-      lastUpdated: 1, // <-- cache KALICI ÇÖZÜM İÇİN EKLENMESİ GEREKEN ALAN
-      // DİREKT İHTİYACIMIZ OLAN ALT ALANLARI İSTİYORUZ.
+      lastUpdated: 1, 
       "translations.tr.title": 1,
       "translations.en.title": 1,
       "translations.de.title": 1,
       "translations.fr.title": 1,
-      // Not: Bu, 'description' ve 'audioPath' gibi ağır verileri almaz.
-      //"translations.title": 1 // Sadece 'title' objesini al (tüm diller)
     };
-
-    /**
- * GET /api/v1/locations/cluster-details?ids=id1,id2,id3
- * Cluster'a tıklandığında, o cluster'daki markerların detaylarını çeker
- */
-
     
     // Sadece 'Yayında (True)' olanları haritada göster
     const locationsIndex = await db.collection('locations')
@@ -298,8 +286,6 @@ app.get('/api/v1/locations/index', async (req, res) => {
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });
-
-
 app.get('/api/v1/locations/cluster-details', async (req, res) => {
   try {
     const { ids } = req.query;
@@ -308,7 +294,6 @@ app.get('/api/v1/locations/cluster-details', async (req, res) => {
       return res.status(400).json({ error: "ids parametresi gereklidir." });
     }
     
-    // String'den array'e çevir: "id1,id2,id3" → ["id1", "id2", "id3"]
     const idArray = ids.split(',').map(id => id.trim());
     
     const locations = await db.collection('locations')
@@ -322,24 +307,16 @@ app.get('/api/v1/locations/cluster-details', async (req, res) => {
     res.status(500).json({ error: "Sunucu hatası" });
   }
 });
-
-/**
- * GET /api/v1/locations/details/:id
- * Haritada bir pine tıklandığında, o TEK lokasyonun TÜM AĞIR verilerini
- * (tüm çeviriler, etiketler, yıl vb.) getirir.
- */
 app.get('/api/v1/locations/details/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // 'id' (string) alanına göre arama yapıyoruz
     const location = await db.collection('locations').findOne({ id: id }); 
 
     if (!location) {
       return res.status(404).json({ error: "Lokasyon bulunamadı." });
     }
     
-    // Frontend'in (showDetails) 4 dili de işlemesi için tüm 'translations' objesini yolluyoruz
     res.json(location);
 
   } catch (err) {
@@ -350,31 +327,18 @@ app.get('/api/v1/locations/details/:id', async (req, res) => {
 
 
 // --- 3D. LOKASYON YÖNETİM (CRUD) API'LERİ (FAZ 3) ---
-
-/**
- * GET /api/v1/meta/cities
- * Filtre dropdown'ı için veritabanındaki TÜM EŞSİZ şehir adlarını çeker.
- */
+// ... (Bu /meta/cities kodunda değişiklik yok) ...
 app.get('/api/v1/meta/cities', async (req, res) => {
-  try {
-    // ... (Mevcut meta/cities kodunuz - değişiklik yok) ...
-    const cities = await db.collection('locations').distinct('city');
-    res.json(cities.sort()); 
-  } catch (err) {
-    console.error("Şehir listesi çekme hatası:", err);
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
+  try {
+    const cities = await db.collection('locations').distinct('city');
+    res.json(cities.sort()); 
+  } catch (err) {
+    console.error("Şehir listesi çekme hatası:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 
-
-
-// server.js - ŞU KODU, GET /api/v1/admin/list-by-city ÜSTÜNE EKLE
-// Yani GET /api/v1/admin/list-by-city'den ÖNCESİ koy
-
-/**
- * Helper: Benzersiz lokasyon ID oluştur
- * Format: "{city}_{number}" (örn: budapest_002, istanbul_015)
- */
+// ... (Bu 'generateLocationId' kodunda değişiklik yok) ...
 async function generateLocationId(city) {
   try {
     const lastLocation = await db.collection('locations')
@@ -398,10 +362,7 @@ async function generateLocationId(city) {
   }
 }
 
-/**
- * POST /api/v1/locations
- * Yeni lokasyon oluştur
- */
+// ... (Bu POST /locations kodunda değişiklik yok) ...
 app.post('/api/v1/locations', async (req, res) => {
   try {
     const { 
@@ -409,7 +370,6 @@ app.post('/api/v1/locations', async (req, res) => {
       isPublished, categoryKey, tagKeys
     } = req.body;
 
-    // Validasyon
     if (!city || lat === undefined || lng === undefined) {
       return res.status(400).json({ error: "Şehir, lat ve lng zorunludur." });
     }
@@ -418,7 +378,6 @@ app.post('/api/v1/locations', async (req, res) => {
       return res.status(400).json({ error: "TR başlığı zorunludur." });
     }
 
-    // Benzersiz ID oluştur (budapest_001 formatında)
     const newId = await generateLocationId(city.toLowerCase());
 
     const newLocation = {
@@ -462,17 +421,8 @@ app.post('/api/v1/locations', async (req, res) => {
   }
 });
 
-
-
-
-
-  /**
-   * --- (YENİ) ---
-   * GET /api/v1/admin/list-by-city
-   * Admin paneli için, belirli bir şehrin "hafif" lokasyon listesini çeker.
-   * Sadece id, city ve tüm dillerdeki title'ları alır.
-   */
-  app.get('/api/v1/admin/list-by-city', async (req, res) => {
+// ... (Bu /admin/list-by-city kodunda değişiklik yok) ...
+app.get('/api/v1/admin/list-by-city', async (req, res) => {
     try {
       const { city } = req.query;
 
@@ -484,12 +434,11 @@ app.post('/api/v1/locations', async (req, res) => {
         city: city
       };
       
-      // Hafif veri için projeksiyon (map.html'deki 'index' gibi)
       const projection = {
         _id: 0,
         id: 1,
         city: 1,
-        categoryKey: 1, // Kategori filtresi için bu da lazım
+        categoryKey: 1, 
         "translations.tr.title": 1,
         "translations.en.title": 1,
         "translations.de.title": 1,
@@ -509,38 +458,28 @@ app.post('/api/v1/locations', async (req, res) => {
     }
   });
 
-/**
- * GET /api/v1/locations/:id
- * (Bu, YÖNETİM PANELİ'nin kullandığı detay endpoint'idir. 'details/:id' ile aynıdır
- * ama ayırıyoruz ki ileride admin için farklı veriler (örn: yayınlanmamış) gönderebilelim.)
- */
+// ... (Bu /locations/:id (GET) kodunda değişiklik yok) ...
 app.get('/api/v1/locations/:id', async (req, res) => {
-  try {
-    // ... (Mevcut locations/:id kodunuz - değişiklik yok) ...
-    const { id } = req.params; 
-    const location = await db.collection('locations').findOne({ id: id }); 
-    if (!location) {
-      return res.status(404).json({ error: "Lokasyon bulunamadı." });
-    }
-    res.json(location);
-  } catch (err) {
-    console.error("Tekil lokasyon çekme hatası:", err); 
-    res.status(500).json({ error: "Sunucu hatası" });
-  }
+  try {
+    const { id } = req.params; 
+    const location = await db.collection('locations').findOne({ id: id }); 
+    if (!location) {
+      return res.status(404).json({ error: "Lokasyon bulunamadı." });
+    }
+    res.json(location);
+  } catch (err) {
+    console.error("Tekil lokasyon çekme hatası:", err); 
+    res.status(500).json({ error: "Sunucu hatası" });
+  }
 });
 
-
-/**
- * PUT /api/v1/locations/:id
- * Lokasyon yönetim panelindeki "Kaydet" butonu.
- */
+// ... (Bu PUT /locations/:id kodunda değişiklik yok) ...
 app.put('/api/v1/locations/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
     delete updateData._id;
     
-    // GeoJSON location objesi güncelle (eğer lat/lng değişti ise)
     if (updateData.lat !== undefined && updateData.lng !== undefined) {
       updateData.location = {
         type: "Point",
@@ -548,7 +487,6 @@ app.put('/api/v1/locations/:id', async (req, res) => {
       };
     }
     
-    // lastUpdated timestamp'ı güncelle
     updateData.lastUpdated = new Date();
 
     const result = await db.collection('locations').updateOne(
@@ -569,13 +507,7 @@ app.put('/api/v1/locations/:id', async (req, res) => {
   }
 });
 
-
-
-/**
- * DELETE /api/v1/locations/:id
- * Lokasyonu sil
- * Bu kodu, PUT endpoint'inden SONRA ekle
- */
+// ... (Bu DELETE /locations/:id kodunda değişiklik yok) ...
 app.delete('/api/v1/locations/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -596,25 +528,83 @@ app.delete('/api/v1/locations/:id', async (req, res) => {
 });
 
 
+// --- (YENİ) PAKET YÖNETİMİ API'LERİ (FAZ 4 - "EV ÖDEVİ") ---
+
+/**
+ * ADIM 1.A: PAKET LİSTESİ API'si
+ * 'paketler.html' sayfası için tüm mevcut şehirleri (paketleri)
+ * ve içlerindeki toplam marker sayısını listeler.
+ */
+app.get('/api/v1/packages/summary', async (req, res) => {
+  console.log("API İsteği: /packages/summary (Paket Listesi) çekiliyor...");
+  
+  try {
+    // MongoDB'nin "Aggregation Pipeline" (Toplama Hattı) özelliğini kullanıyoruz.
+    // 'db.collection' kullanarak senin native driver koduna uyum sağlandı.
+    const summary = await db.collection('locations').aggregate([
+      {
+        // 1. Aşama: Sadece yayında olanları filtrele
+        $match: { isPublished: true }
+      },
+      {
+        // 2. Aşama: "city" (şehir) alanına göre grupla
+        $group: {
+          _id: "$city", // "city" alanını 'id' olarak grupla (örn: "budapest")
+          markerCount: { $sum: 1 } // Her gruptaki dökümanları say
+        }
+      },
+      {
+        // 3. Aşama: Çıktıyı "şık" hale getir
+        $project: {
+          _id: 0, // MongoDB'nin '_id' alanını kaldır
+          id: "$_id", // '_id'yi 'id' olarak yeniden adlandır
+          name: { // 'budapest' kelimesini 'Budapest' (Baş Harfi Büyük) yap
+            $concat: [
+              { $toUpper: { $substrCP: [ "$_id", 0, 1 ] } },
+              { $substrCP: [ "$_id", 1, { $strLenCP: "$_id" } ] }
+            ]
+          },
+          markerCount: 1, // Sayım sonucunu dahil et
+          
+          // Not: sizeMB (tahmini boyut) hesaplaması çok karmaşık.
+          // "Tane tane" gidelim, onu şimdilik '0' yapıyoruz.
+          sizeMB: 0 
+        }
+      },
+      {
+        // 4. Aşama: Şehir adına (id) göre sırala
+        $sort: { id: 1 } 
+      }
+    ]).toArray(); // <-- Native driver için .toArray() gerekli
+
+    res.json(summary);
+
+  } catch (err) {
+    console.error("Paket özeti (summary) çekilemedi:", err);
+    res.status(500).json({ message: "Sunucu hatası: " + err.message });
+  }
+});
+
+// (Buraya 'Adım 1.B' olan /packages/details/:cityId endpoint'i gelecek)
 
 
 // --- 4. SUNUCUYU BAŞLATMA ---
 
 // Önce MongoDB'ye bağlan, BAŞARILI olursa API sunucusunu başlat
 MongoClient.connect(CONNECTION_STRING)
-  .then(client => {
-    console.log('✅ MongoDB Atlas\'a başarıyla bağlandı.');
-    db = client.db(DB_NAME); // Veritabanı bağlantısını 'db' değişkenine ata
+  .then(client => {
+    console.log('✅ MongoDB Atlas\'a başarıyla bağlandı.');
+    db = client.db(DB_NAME); // Veritabanı bağlantısını 'db' değişkenine ata
 
-    // Veritabanı hazır, şimdi API'yi dinlemeye başla
-    app.listen(PORT, () => {
-      console.log(`🚀 API Sunucusu http://localhost:${PORT} adresinde çalışıyor.`);
-      // Eski BBox endpoint'ini log'dan kaldırabiliriz, ama zararı yok.
-      console.log(`🗺️ Lokasyon endpoint'i: http://localhost:${PORT}/api/v1/locations`);
-    });
-  })
-  .catch(err => {
-    console.error('❌ MongoDB bağlantı hatası!');
-    console.error(err);
-    process.exit(1); // Bağlanamazsa uygulamayı durdur
-  });
+    // Veritabanı hazır, şimdi API'yi dinlemeye başla
+    app.listen(PORT, () => {
+      console.log(`🚀 API Sunucusu http://localhost:${PORT} adresinde çalışıyor.`);
+      // Eski BBox endpoint'ini log'dan kaldırabiliriz, ama zararı yok.
+      console.log(`🗺️ Lokasyon endpoint'i: http://localhost:${PORT}/api/v1/locations`);
+    });
+  })
+  .catch(err => {
+    console.error('❌ MongoDB bağlantı hatası!');
+    console.error(err);
+    process.exit(1); // Bağlanamazsa uygulamayı durdur
+  });
