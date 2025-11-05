@@ -604,34 +604,36 @@ app.get('/api/v1/packages/summary', async (req, res) => {
 
 
 
+const https = require('https');
+const http = require('http');
 
-
-// --- MEDYA PROXY (CORS sorunu için) ---
+// --- MEDYA PROXY ---
 app.get('/api/v1/media/:fileName', async (req, res) => {
   try {
     const fileName = req.params.fileName;
-    
-    // Dosya adından type'ı tahmin et
     const type = fileName.includes('.jpg') || fileName.includes('.png') ? 'images' : 'audio';
     const mediaUrl = `https://mapmarkers.onrender.com/assets/${type}/${fileName}`;
     
-    console.log(`📥 Proxy fetching: ${mediaUrl}`);
+    console.log(`📥 Proxy: ${mediaUrl}`);
     
-    const response = await fetch(mediaUrl);
-    if (!response.ok) {
-      console.warn(`⚠️ Proxy 404: ${mediaUrl}`);
-      return res.status(404).json({ error: 'Medya bulunamadı' });
-    }
+    https.get(mediaUrl, (response) => {
+      if (response.statusCode !== 200) {
+        console.warn(`⚠️ 404: ${fileName}`);
+        return res.status(404).json({ error: 'Bulunamadı' });
+      }
+      
+      res.set('Content-Type', response.headers['content-type']);
+      response.pipe(res);
+    }).on('error', (err) => {
+      console.error('Proxy hatası:', err);
+      res.status(500).json({ error: err.message });
+    });
     
-    const buffer = await response.buffer();
-    res.set('Content-Type', response.headers.get('content-type'));
-    res.send(buffer);
   } catch (err) {
     console.error('Proxy hatası:', err);
-    res.status(500).json({ error: 'Medya proxy hatası' });
+    res.status(500).json({ error: 'Proxy hatası' });
   }
 });
-
 
 
 
