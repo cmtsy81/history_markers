@@ -607,15 +607,19 @@ app.get('/api/v1/packages/summary', async (req, res) => {
 
 
 // --- MEDYA PROXY (CORS sorunu için) ---
-app.get('/api/v1/media/:filePath(*)', async (req, res) => {
+app.get('/api/v1/media/:fileName', async (req, res) => {
   try {
-    const filePath = req.params[0];
-    const mediaUrl = `https://mapmarkers.onrender.com/assets/${filePath}`;
+    const fileName = req.params.fileName;
     
-    console.log(`📥 Proxy: ${mediaUrl}`);
+    // Dosya adından type'ı tahmin et
+    const type = fileName.includes('.jpg') || fileName.includes('.png') ? 'images' : 'audio';
+    const mediaUrl = `https://mapmarkers.onrender.com/assets/${type}/${fileName}`;
+    
+    console.log(`📥 Proxy fetching: ${mediaUrl}`);
     
     const response = await fetch(mediaUrl);
     if (!response.ok) {
+      console.warn(`⚠️ Proxy 404: ${mediaUrl}`);
       return res.status(404).json({ error: 'Medya bulunamadı' });
     }
     
@@ -627,7 +631,6 @@ app.get('/api/v1/media/:filePath(*)', async (req, res) => {
     res.status(500).json({ error: 'Medya proxy hatası' });
   }
 });
-
 
 
 
