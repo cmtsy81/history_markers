@@ -568,7 +568,7 @@ app.get('/api/v1/packages/summary', async (req, res) => {
           
           // Not: sizeMB (tahmini boyut) hesaplaması çok karmaşık.
           // "Tane tane" gidelim, onu şimdilik '0' yapıyoruz.
-          sizeMB: 0 
+          sizeMB: { $literal: 0 } // <-- DÜZELTME: "0"ı bir DEĞER olarak ata
         }
       },
       {
