@@ -607,7 +607,7 @@ app.get('/api/v1/packages/summary', async (req, res) => {
 
 
 // --- MEDYA PROXY (CORS sorunu için) ---
-app.get('/api/v1/media/*', async (req, res) => {
+app.get('/api/v1/media/:filePath(*)', async (req, res) => {
   try {
     const filePath = req.params[0];
     const mediaUrl = `https://mapmarkers.onrender.com/assets/${filePath}`;
