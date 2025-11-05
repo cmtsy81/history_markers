@@ -598,6 +598,43 @@ app.get('/api/v1/packages/summary', async (req, res) => {
 // DOSYA: server.js
 // ... ('/api/v1/packages/summary' bloğunun hemen altına) ...
 
+
+
+
+
+
+
+
+
+// --- MEDYA PROXY (CORS sorunu için) ---
+app.get('/api/v1/media/*', async (req, res) => {
+  try {
+    const filePath = req.params[0];
+    const mediaUrl = `https://mapmarkers.onrender.com/assets/${filePath}`;
+    
+    console.log(`📥 Proxy: ${mediaUrl}`);
+    
+    const response = await fetch(mediaUrl);
+    if (!response.ok) {
+      return res.status(404).json({ error: 'Medya bulunamadı' });
+    }
+    
+    const buffer = await response.buffer();
+    res.set('Content-Type', response.headers.get('content-type'));
+    res.send(buffer);
+  } catch (err) {
+    console.error('Proxy hatası:', err);
+    res.status(500).json({ error: 'Medya proxy hatası' });
+  }
+});
+
+
+
+
+
+
+
+
 /**
  * ADIM 1.B: PAKET DETAY API'si
  * 'paketler.html'deki "İndir" butonu için.
