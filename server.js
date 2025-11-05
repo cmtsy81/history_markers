@@ -587,6 +587,85 @@ app.get('/api/v1/packages/summary', async (req, res) => {
 
 // (Buraya 'Adım 1.B' olan /packages/details/:cityId endpoint'i gelecek)
 
+// DOSYA: server.js
+// ... ('/api/v1/packages/summary' bloğunun hemen altına) ...
+
+/**
+ * ADIM 1.B: PAKET DETAY API'si
+ * 'paketler.html'deki "İndir" butonu için.
+ * Bir şehre ait TÜM "ağır" JSON verisini (markerDetails) VE
+ * o şehre ait TÜM medya dosyalarının (resim/ses) bir listesini döndürür.
+ */
+app.get('/api/v1/packages/details/:cityId', async (req, res) => {
+  const { cityId } = req.params; // örn: "budapest"
+  console.log(`API İsteği: /packages/details/${cityId} (Paket Detayı) çekiliyor...`);
+
+  try {
+    // 1. O şehre ait TÜM 'markerDetails' (ağır veri) JSON'unu çek
+    const details = await db.collection('locations').find({
+      city: cityId,
+      isPublished: true
+    }).toArray();
+
+    if (details.length === 0) {
+      return res.status(404).json({ message: "Bu şehir için indirilecek paket bulunamadı." });
+    }
+
+    // 2. O JSON verisinden, ihtiyaç duyulan TÜM medya dosyalarının
+    //    benzersiz (unique) bir listesini "tane tane" oluştur.
+    const mediaSet = new Set();
+    
+    details.forEach(loc => {
+      
+      // A. Ana resmi (thumbnail) ekle
+      if (loc.thumbnailUrl) {
+        let url = loc.thumbnailUrl;
+        if (url.startsWith('/')) { mediaSet.add(url); }
+        else if (url.startsWith('assets/')) { mediaSet.add(`/${url}`); }
+        else { mediaSet.add(`/assets/images/${url}`); } // (Eski yolu varsayıyoruz)
+      }
+
+      // B. Şehir fallback resmini ekle (Senin dosya yapına göre)
+      if (loc.city) {
+        mediaSet.add(`/fallbacks/${loc.city.toLowerCase()}.jpg`);
+      }
+      
+      // C. Ses dosyalarını ekle (tüm diller)
+      for (const lang of ['tr', 'en', 'de', 'fr']) {
+        if (loc.translations[lang] && loc.translations[lang].audioPath) {
+          const audioPath = loc.translations[lang].audioPath;
+          // (map_script.js'teki 'audioPath' mantığıyla aynı)
+          if (audioPath.startsWith('/')) { mediaSet.add(audioPath); }
+          else if (audioPath.startsWith('assets/')) { mediaSet.add(`/${audioPath}`); }
+          else { mediaSet.add(`/assets/audio/${audioPath}`); }
+        }
+      }
+    });
+    
+    // D. Genel fallback ve pinleri de ekle (her ihtimale karşı)
+    mediaSet.add('/assets/images/demo.jpg');
+    mediaSet.add('/pin_default.png');
+    mediaSet.add('/pin_selected.png');
+    mediaSet.add('/favicon.ico'); // (Favicon'u da ekle)
+
+    // 3. Paketi yolla: JSON detayları + Medya listesi
+    res.json({
+      city: cityId,
+      details: details, // Tüm "ağır" JSON verisi
+      mediaUrls: Array.from(mediaSet) // Tüm "benzersiz" medya yolları
+    });
+
+  } catch (err) {
+    console.error(`Paket detayı (${cityId}) çekilemedi:`, err);
+    res.status(500).json({ message: "Sunucu hatası: " + err.message });
+  }
+});
+
+
+
+
+
+
 
 // --- 4. SUNUCUYU BAŞLATMA ---
 
